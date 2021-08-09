@@ -351,7 +351,7 @@ ggplot(all_d,aes(x = syn,y = dnds)) +
 
 
 #####
-# identity vs taxonomic broadness (fig. SXXX)
+# identity vs taxonomic broadness (fig. S1)
 #####
 
 data$lca = factor(data$lca,levels = c('r',"d","p","c","o","f","g","s"))
@@ -370,43 +370,40 @@ ggplot(data_id)+
   scale_x_discrete(name ="Lineage specificity", 
                    labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
 
+########
+# beta diversity distribution (fig. S2)
+#######
+
+data_beta = read.table("beta_div.concat.tab")
+names(data_beta) = c("fam","mean_b","median_b","max_b","min_b")
+data_num_habs = read.table("../../relation_lca_biome_mobile/number_biomes_per_fam.eval_1e-3_cov50.tab")
+names(data_num_habs) = c("fam","nh")
+data_num_sample = read.table("../../relation_lca_biome_mobile/number_samples_per_fam.eval_1e-3_cov_50.tab")
+names(data_num_sample) = c("fam","ns")
 
 
-######
-# correlation num. habitats vs mobile (viral / plasmid)(Fig. SXXXX)
-#####
 
-# correlation num biomes / presence in viral OR plasmid 
-data_multi = data %>% 
-  group_by(mobile_vir,num_biomes) %>% 
-  summarise(n = n()) %>% 
-  group_by(num_biomes) %>% 
-  mutate(prop = proportions(n)) %>% # calculate proportions num_biomes  
-  filter(! is.na(num_biomes)) %>% 
-  #  filter(num_biomes < 80) %>% 
-  filter(mobile_vir == TRUE)
+data = data_beta %>% 
+  left_join(data_num_habs,by = "fam") %>% 
+  left_join(data_num_sample,by = "fam") %>% 
+  filter(fam %in% filt_fams$V1) %>% 
+  mutate(rare = case_when(ns < 10 ~'< 10 samples',
+                          ns>= 10 ~ '>= 10 samples')) 
 
-ggplot(data_multi) +
-  geom_point(aes(x = num_biomes, y = prop,color = mobile_vir))+
-  ylim(c(0,1))+
-  xlim(c(0,80))+
-  ylim(c(0,0.4))+
+ggplot(data)+
+  geom_histogram(aes(x = mean_b),position = "identity",bins = 100,alpha = 0.2,color = "#56B4E9",fill = "#56B4E9")+
+  xlim(c(0.001,1))+
   theme_classic()+
-  annotate("text", x = 10, y = 0.3, label = "R = 0.94",size = 10)+
   theme(
     text=element_text(size=20),
     axis.title=element_text(size=20),
-    axis.text=element_text(size=20),
-    legend.position = "none")+
-  xlab("NUmber of habitats")+
-  ylab("Proportion of Unknown protein families")
+    axis.text=element_text(size=20))+
+  xlab("Mean beta diversity")+
+  ylab("Unknown protein families")
 
-
-cor(data_multi$num_biomes,data_multi$prop,method = "spearman")
-cor.test(data_multi$num_biomes,data_multi$prop,method = "spearman")
 
 #### 
-# habitat distribution under restrictive mappings (fig. SXXX)
+# habitat distribution under restrictive mappings (fig. S3)
 ####
 
 data_multi_p = data %>% 
@@ -429,8 +426,6 @@ data_multi_v = data %>%
   filter(num_biomes_90 < 20)
 
 
-
-table(data$rare_90)
 data$rare_90 <- factor(data$rare_90,                 
                     levels = c("< 10 samples", "11-50 samples", ">50 samples"))
 ggplot()+
@@ -448,6 +443,37 @@ ggplot()+
     text=element_text(size=20),
     axis.title=element_text(size=20),
     axis.text=element_text(size=15))
+
+####
+# correlation number habitats / mobile elements (fig. S4)
+####
+
+data_multi = data %>% 
+  group_by(mobile_vir,num_biomes) %>% 
+  summarise(n = n()) %>% 
+  group_by(num_biomes) %>% 
+  mutate(prop = proportions(n)) %>% # calculate proportions num_biomes  
+  filter(! is.na(num_biomes)) %>% 
+  filter(mobile_vir == TRUE)
+
+ggplot(data_multi) +
+  geom_point(aes(x = num_biomes, y = prop,color = mobile_vir))+
+  ylim(c(0,1))+
+  xlim(c(0,80))+
+  ylim(c(0,0.4))+
+  theme_classic()+
+  annotate("text", x = 10, y = 0.3, label = paste("R = ",as.character(round(cor(data_multi$num_biomes,data_multi$prop,method = "spearman"),2))),size = 10)+
+  theme(
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20),
+    legend.position = "none")+
+  xlab("NUmber of habitats")+
+  ylab("Proportion of Unknown protein families")
+
+cor.test(data_multi$num_biomes,data_multi$prop,method = "spearman")
+
+
 
 
 
