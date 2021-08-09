@@ -3,17 +3,105 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
+#####
+# load data
+#####
+
+# filtered fams
 f_fams = read.table("../filtered_families.RNAcode.noPfamAcov.BUSTED.noPVOGs.noPfamB.noRefSeq_blastx.txt")
-data_alistat = read.table("alistat_stats.tab",header = T)
+
+
+# dnds for each fam
+dnds_data = read.table("busted_final.tab")
+names(dnds_data) = c("fan","dnds")
+dnds_data = dnds_data %>% 
+  filter(fan %in% f_fams$V1)
+dnds_data$dnds = as.numeric(dnds_data$dnds)
+
+# number members per fam
+size_dist_data = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.rep_clu_seqs.size_dist.tab")
+names(size_dist_data) = c("cluster","value")
+size_dist_data$variable = "Novel"
+size_dist_data = size_dist_data %>% 
+  filter(cluster %in% f_fams$V1)
+
+# plasflow predictions per fam
+plasflow = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.plasflow_0.95.tab")
+head(plasflow)
+plasflow = plasflow %>% 
+  mutate(plasmid = case_when(V4 > 0 ~ TRUE,
+                            V4 == 0  ~ FALSE)) %>%
+  select(V1, plasmid)
+
+# seeker predictions per fam 
+seeker = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.seeker_0.95.tab")
+seeker = seeker %>% 
+  mutate(viral = case_when(V4 >0 ~ TRUE,
+                             V4==0 ~ FALSE)) %>% 
+  select(V1, viral)
+
+# lcas per fam 
+lcas = read.table("lca_per_fam.rank.tab")
+names(lcas) = c("V1","lca")
+
+# number habitats per fam  
+num_biomes = read.table("number_biomes_per_fam.eval_1e-3_cov50.tab") #
+names(num_biomes) = c("V1","num_biomes")
+head(num_biomes)
+nrow(num_biomes)
+
+# number of detections in per fam
+number_samples = read.table("number_samples_per_fam.eval_1e-3_cov_50.tab")
+names(number_samples) = c("V1","num_samples")
+
+# number habitats per fam (strict filters)
+number_biomes_90 = read.table("number_biomes_per_fam.id_90_cov_50.tab")
+names(number_biomes_90) = c("V1","num_biomes_90")
+
+# number of detections per fam (strong filters)
+number_samples_90 = read.table("number_samples_per_fam.id_90_cov_50.tab")
+names(number_samples_90) = c("V1","num_samples_90")
+
+# alistat stats for joining with other data
+data_alistat  = read.table("../alg_stats/alistat_stats.tab",header = T)
+n = names(data_alistat)
+n[1] = "V1"
+names(data_alistat) = n
 data_alistat = data_alistat %>% 
-  filter(cluster_name %in% f_fams$V1)
+  filter(V1 %in% f_fams$V1)
+
+
+# join  data
+data = filt_fams %>% 
+  left_join(plasflow,by = "V1") %>% 
+  left_join(seeker,by = "V1") %>% 
+  left_join(lcas,by = "V1") %>% 
+  left_join(num_biomes,by = "V1") %>% 
+  mutate(multibiome = case_when(num_biomes>1 ~ TRUE,
+                           num_biomes<=1 ~ FALSE)) %>% 
+  mutate(mobile_vir = case_when(plasmid == T | viral == T ~ T,
+                                plasmid == F & viral == F ~ F)) %>% 
+  mutate(synapo = case_when(V1 %in% synapo_fams$V1 ~ T,
+                            ! V1 %in% synapo_fams$V1 ~ F)) %>% 
+  left_join(synapo_fams,by = "V1") %>% 
+  left_join(data_alistat, by = "V1") %>% 
+  left_join(number_samples,by = "V1") %>% 
+  mutate(rare = case_when(num_samples < 10 ~'< 10 samples',
+                   num_samples>= 10 & num_samples <=50 ~ '11-50 samples',
+                   num_samples >50 ~ ">50 samples")) %>% 
+  left_join(number_biomes_90,by = "V1") %>% 
+  left_join(number_samples_90,by = "V1") %>% 
+  mutate(rare_90 = case_when(num_samples_90 < 10 ~'< 10 samples',
+                          num_samples_90 >= 10 & num_samples_90 <=50 ~ '11-50 samples',
+                          num_samples_90 >50 ~ ">50 samples"))
+
 
 
 #######
 # average identity plot (fig. 1A)
 #########
 
-ggplot(data_alistat)+
+ggplot(stats)+
   geom_histogram(aes(x = av_id),alpha = 0.2,bins =  20,color = "#56B4E9",fill = "#56B4E9")+
   xlab("Average identity")+
   ylab("") + 
@@ -28,14 +116,6 @@ ggplot(data_alistat)+
 # dnds distribution (fig. 1A)
 ######
 
-dnds_data = read.table("busted_final.tab")
-names(dnds_data) = c("fan","dnds")
-
-dnds_data = dnds_data %>% 
-  filter(fan %in% f_fams$V1)
-
-dnds_data$dnds = as.numeric(dnds_data$dnds)
-
 ggplot(dnds_data)+
   geom_histogram(aes(x = dnds),bins = 20,alpha = 0.2,color = "#56B4E9",fill = "#56B4E9")+
   xlab("dN / dS")+
@@ -49,25 +129,13 @@ ggplot(dnds_data)+
 # size distribution novel fams vs eggnog and small peptides (fig. 1B)
 #####
 
-#main plot 
-
-# novel fams lens
-size_dist_data = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.rep_clu_seqs.size_dist.tab")
-names(size_dist_data) = c("cluster","value")
-size_dist_data$variable = "Novel"
-
-size_dist_data = size_dist_data %>% 
-  filter(cluster %in% f_fams$V1)
-
-# short pep lens
+# load short pep and eggnog lens
 short_pep = read.table("sequence_len_small_peptide.txt",sep = '\t',header = T)
 short_pep$cluster = "small"
 short_pep$variable = "Small"
 short_pep$value = short_pep$Length.of.peptide
 short_pep$Length.of.peptide = NULL
 
-
-# eggnog
 eggnog = read.table("per_fam_len.all.tab")
 names(eggnog) = c("cluster","value")
 eggnog$variable = "Eggnog"
@@ -106,11 +174,9 @@ eggnog = read.table("eggnog_num_tax.all.tab")
 names(eggnog) = c("cluster","value")
 eggnog$variable = "Eggnog"
 
-# combine
+# combine & plot
 data_all = rbind(data_num_sp,eggnog) %>% 
   filter(!variable %in%  "conensous_len")
-
-# plot
 ggplot(data_all[order(data_all$variable, decreasing = F),])+
   geom_histogram(aes(color = variable,fill = variable,x = value),alpha = 0.3,position = "identity",bins = 50)+
   xlim(c(0,50))+
@@ -129,72 +195,6 @@ ggplot(data_all[order(data_all$variable, decreasing = F),])+
 ####
 # lineage specificity (fig. 1E)
 ####
-
-
-plasflow = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.plasflow_0.95.tab")
-head(plasflow)
-plasflow = plasflow %>% 
-  #mutate(plasmid = case_when(V4/V2 >= 0.1 ~ TRUE,
-  #                          V4/V2 < 0.1  ~ FALSE)) %>%
-  mutate(plasmid = case_when(V4 > 0 ~ TRUE,
-                            V4 == 0  ~ FALSE)) %>%
-  select(V1, plasmid)
-
-seeker = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.seeker_0.95.tab")
-seeker = seeker %>% 
-  mutate(viral = case_when(V4 >0 ~ TRUE,
-                             V4==0 ~ FALSE)) %>% 
-  select(V1, viral)
-head(seeker)
-table(seeker$viral)
-
-lcas = read.table("lca_per_fam.rank.tab")
-names(lcas) = c("V1","lca")
-
-num_biomes = read.table("number_biomes_per_fam.eval_1e-3_cov50.tab") #
-names(num_biomes) = c("V1","num_biomes")
-head(num_biomes)
-nrow(num_biomes)
-
-number_samples = read.table("number_samples_per_fam.eval_1e-3_cov_50.tab")
-names(number_samples) = c("V1","num_samples")
-
-number_biomes_90 = read.table("number_biomes_per_fam.id_90_cov_50.tab")
-names(number_biomes_90) = c("V1","num_biomes_90")
-
-number_samples_90 = read.table("number_samples_per_fam.id_90_cov_50.tab")
-names(number_samples_90) = c("V1","num_samples_90")
-
-
-stats = read.table("../alg_stats/alistat_stats.tab",header = T)
-n = names(stats)
-n[1] = "V1"
-names(stats) = n
-
-
-# join all data
-data = filt_fams %>% 
-  left_join(plasflow,by = "V1") %>% 
-  left_join(seeker,by = "V1") %>% 
-  left_join(lcas,by = "V1") %>% 
-  left_join(num_biomes,by = "V1") %>% 
-  mutate(multibiome = case_when(num_biomes>1 ~ TRUE,
-                           num_biomes<=1 ~ FALSE)) %>% 
-  mutate(mobile_vir = case_when(plasmid == T | viral == T ~ T,
-                                plasmid == F & viral == F ~ F)) %>% 
-  mutate(synapo = case_when(V1 %in% synapo_fams$V1 ~ T,
-                            ! V1 %in% synapo_fams$V1 ~ F)) %>% 
-  left_join(synapo_fams,by = "V1") %>% 
-  left_join(stats, by = "V1") %>% 
-  left_join(number_samples,by = "V1") %>% 
-  mutate(rare = case_when(num_samples < 10 ~'< 10 samples',
-                   num_samples>= 10 & num_samples <=50 ~ '11-50 samples',
-                   num_samples >50 ~ ">50 samples")) %>% 
-  left_join(number_biomes_90,by = "V1") %>% 
-  left_join(number_samples_90,by = "V1") %>% 
-  mutate(rare_90 = case_when(num_samples_90 < 10 ~'< 10 samples',
-                          num_samples_90 >= 10 & num_samples_90 <=50 ~ '11-50 samples',
-                          num_samples_90 >50 ~ ">50 samples"))
 
 
 # number of fams spaning multiple phylums / in the same genus
