@@ -1,2 +1,2 @@
 # NovFamilies
-Scripts used for generating the results presented in: Orphan metagenomic sequences revealed as novel protein families delineating entire uncultivated lineages
+Scripts used for generating the results presented in Functional and evolutionary significance of unknown genes from uncultivated taxa.
