@@ -17,4 +17,7 @@ Scripts used for generating the results presented in Functional and evolutionary
 - ``genomic_context.py``: reconstruct genomic context per contig
 - ``get_score_per_pos.py``: Calculate the genomic context conservation each novel family.
 - ``genomic_context_conservation_score2json.py``: Get genomic context conservation score to json. 
+
+### Taxonomic distribution
+
 - ``synapos.py``: Calculate synapomorphic families. 
