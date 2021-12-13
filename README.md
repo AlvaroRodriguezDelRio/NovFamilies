@@ -3,7 +3,7 @@ Scripts used for generating the results presented in Functional and evolutionary
 
 ## Database building
 
-- create_families_json.py: generate json including all the gene family information (members, taxonomic distribution, ...)
+- ``create_families_json.py``: generate json including all the gene family information (members, taxonomic distribution, ...)
 
 ## Figures
 
