@@ -17,7 +17,7 @@ def load_lineage_info():
                                     sep='\t', names=['genome', 'rep', 'lineage', 'src'])
     no_metagenomes[['d','p', 'c', 'o', 'f', 'g', 's']] = no_metagenomes['lineage'].str.split(';', expand=True)
 
-    genome2taxonomy =  pd.read_csv('/data/jhc/cold/MAGs/novel_fams-v2/build_fam_table/genome2taxonomy',
+    genome2taxonomy =  pd.read_csv('/data/jhc/cold/MAGs/combined/genome2taxonomy.r202.tab',
                                     sep='\t', names=['genome', 'lineage'])
     genome2taxonomy[['d','p', 'c', 'o', 'f', 'g', 's']] = genome2taxonomy['lineage'].str.split(';', expand=True)
 
@@ -43,7 +43,7 @@ def load_lineage_info():
 
     return taxa2totalgenomes, taxa2ngenomes, taxa2refseq_genomes,taxa2metag_genomes
 
-
+# create dictionary from gtdb annotations
 def create_dict_annot(tax_line):
     level2tax = {}
     for annot in tax_line.split(';'):
@@ -51,6 +51,15 @@ def create_dict_annot(tax_line):
             level,name = annot.split('__')
             level2tax[level] = name
     return level2tax
+
+# get random color for each KO for representation
+def get_route2color(routes,colors):
+      route2color = {}
+      added = set()
+      color = random.sample(colors, 20)
+      for i,route in enumerate(routes):
+        route2color[route] = color[i]
+      return(route2color)
 
 
 # collapse tree
@@ -65,8 +74,7 @@ def collapse_tree(tree,name2lineage,level_trunc):
     level_t_index = ['d','p','c','o','f','g','s'].index(level_trunc)
     levels2trunc = ['d','p','c','o','f','g','s'][level_t_index+1:]
     levels_prev_trunc = ['d','p','c','o','f','g','s'][:level_t_index+1]
-    print (levels2trunc,levels_prev_trunc)
-    # eliminate 'first layer', before level of interest
+
     exit_l = False
     while not exit_l:
         exit_l = True
@@ -94,16 +102,16 @@ def load_all_annots():
       genomeid2annot = {}
       name2lineage = defaultdict(lambda:set())
 
-      # load for bacteria
-      for line in open("/data/jhc/freezer/public/GTDB/GTDB_rev95/bac120_taxonomy_r95.tsv"):
+      # load bacteria taxonomy
+      for line in open("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/bac120_taxonomy_r202.tsv"):
             line = line.rstrip()
             genome,annot = line.split('\t')
             genomeid2annot[genome] = annot
             for tax in annot.split(';'):
                 name2lineage[tax].add(annot)
 
-      # load for archaea
-      for line in open("/data/jhc/freezer/public/GTDB/GTDB_rev95/ar122_taxonomy_r95.tsv"):
+      # load archaea taxonomy
+      for line in open("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/ar122_taxonomy_r202.tsv"):
           line = line.rstrip()
           genome,annot = line.split('\t')
           genomeid2annot[genome] = annot
@@ -112,7 +120,7 @@ def load_all_annots():
 
       return genomeid2annot,name2lineage
 
-# format tree node names so that they are the tax name in gtdb
+# format tree internal node names 
 def format_tree(tree,genomeid2annot):
     def create_dict_annot(tax_line):
         level2tax = {}
@@ -178,8 +186,6 @@ def layout(node):
     aligned_column = 0
 
     if node.is_leaf():
-
-      # bars for representing number of cultivated / uncultivated genomes
         bar_cult = ""
         if node.name in taxa2metag_genomes and node.name in taxa2refseq_genomes:# and node.name in taxa2totalgenomes:
             bar_cult = RectFace((taxa2metag_genomes[node.name]/(taxa2metag_genomes[node.name] + taxa2refseq_genomes[node.name]))*100,20, fgcolor='red', bgcolor='red')
@@ -200,11 +206,8 @@ def layout(node):
               aligned_column += 1
               for route,col in route_especific_ko_order[ko].items():
                   color_route = route2color[route]
-
                   rectface = RectFace(20,20, fgcolor=color_route, bgcolor=color_route)
                   add_face_to_node(rectface, node, column=col + 1, position='aligned')
-
- 
 
 ######################## start ################################
 
@@ -217,8 +220,8 @@ def layout(node):
 genomeid2annot,name2lineage = load_all_annots()
 
 # load gtdb trees and combine
-tree = Tree("/data/jhc/freezer/public/GTDB/GTDB_rev95/bac120_r95.tree",format = 1,quoted_node_names = True)
-tree_arch = Tree("/data/jhc/freezer/public/GTDB/GTDB_rev95/ar122_r95.tree",format = 1,quoted_node_names = True)
+tree = Tree("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/bac120_r202.tree",format = 1,quoted_node_names = True)
+tree_arch = Tree("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/ar122_r202.tree",format = 1,quoted_node_names = True)
 root_node_bac = next(n.get_tree_root() for n in tree.traverse())
 root_node_arch = next(n.get_tree_root() for n in tree_arch.traverse())
 root_node_bac.add_child(root_node_arch)
@@ -235,7 +238,6 @@ tree = collapse_tree(tree,name2lineage,collapse_level)
 
 colors = random_color(num=20, s=0.6, l=0.5)
 colors_bk = random_color(num=20, s=0.2, l=0.9)
-
 
 # load taxonomies per family
 fam2tax = defaultdict(lambda:set())
@@ -272,7 +274,6 @@ with open("../score_per_pos.strand.unknown.espace.json") as jfile:
               for elem in line['kos']:
                     if elem['score'] > 0.9 and elem['mean_num_in_opposite_strand'] == 0 and  elem['mean_num_pos_opposite_strand_between'] == 0 and abs(int(elem['pos'])) == 1 and elem['num_h_dis'] == 0:
                         kos_counter[elem['n']] += 1
-                        #kos_present.add(elem['n'])
                         print ("ko",elem['n'],fam2tax[line['fam']])
                         for tax in fam2tax[line['fam']]:
                             taxa2kos[tax][elem['n']] += 1
@@ -289,12 +290,11 @@ with open("../score_per_pos.strand.unknown.espace.json") as jfile:
 # load interesting kos
 route_set = set()
 route_especific_ko_order = defaultdict(lambda:{})
-#ko_number_per_pos = []
 pos = 0
 ko2enzyme_name = {}
 for line in open('energy_sp.txt'):
     route, ko, tr = list(map(str.strip,line.split('\t')))
-    if ko in kos_present and ko != "K02123": # quit K02123 manually because bar was too high
+    if ko in kos_present and ko != "K02123": # quited K02123 manually because bar was too high
         pos += 1
         if re.search("Photosynthesis",route):
             route = "Photosynthesis"
@@ -304,10 +304,10 @@ for line in open('energy_sp.txt'):
         route_especific_ko_order[ko][route.split('[')[0]] = pos
         ko2enzyme_name[ko] = tr
 
-added_kos_xen = set() # eliminate if we want the detailed routes
+added_kos_xen = set() 
 for line in open('xenobiotic_sp.tab'):
     route, ko, tr = list(map(str.strip,line.split('\t')))
-    if ko in kos_present and ko not in added_kos_xen and ko != "K02123": # quit K02123 manually because bar was too high
+    if ko in kos_present and ko not in added_kos_xen and ko != "K02123": # quited K02123 manually because bar was too high
         pos += 1
         route_especific_ko_order[ko]["xen_deg"] = pos
         route_set.add("xen_deg")
@@ -315,6 +315,7 @@ for line in open('xenobiotic_sp.tab'):
         added_kos_xen.add(ko)
 
 # discard leaves in the tree with no kos assigned
+print (list(taxa_with_kos))
 exit_loop = False
 while not exit_loop:
     exit_loop = True
@@ -344,8 +345,7 @@ route2color = get_route2color(route_set,colors)
 tree.dist = 0
 ts = TreeStyle()
 ts.root_opening_factor = 0.9
-ts.show_leaf_name = False#True
-
+ts.show_leaf_name = False
 
 # create headers for heatmap and barplot with number of kos
 ko2col_ene = {}
@@ -353,20 +353,19 @@ number_kos_not_present = 0
 for ko in route_especific_ko_order:
     for route,pos in route_especific_ko_order[ko].items():
           color_route = route2color[route]
+
           txt_face = TextFace(ko,  fsize=9, bold=True)
           txt_face.rotation = 90
           txt_face.vt_align = 0
-          ts.aligned_header.add_face(txt_face, column=pos + 1)# +2 for adding space between num genomes and matrix, delete otherwise (also in matrix coordinates in layout function)
+          ts.aligned_header.add_face(txt_face, column=pos + 1)
 
           bar = RectFace(20,kos_counter[ko]*4, fgcolor=color_route, bgcolor=color_route)
-          bar.vt_align = 2#0#1
+          bar.vt_align = 2
           print ('score',kos_counter[ko],ko)
 
-          ts.aligned_header.add_face(bar, column=pos + 1)## +2 for adding space between num genomes and matrix, delete otherwise (also in matrix coordinates in layout function)
-
-
+          ts.aligned_header.add_face(bar, column=pos + 1)
 
 # create tree layout and export
 ts.layout_fn = layout
 ts.scale =  60
-tree.render('circ_tree.pdf', tree_style=ts)
+tree.render('matrix.pdf', tree_style=ts)
