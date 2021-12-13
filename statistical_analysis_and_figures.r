@@ -97,8 +97,24 @@ data = filt_fams %>%
 
 
 
+
+
+######
+# dnds distribution (fig. 1B)
+######
+
+ggplot(dnds_data)+
+  geom_histogram(aes(x = dnds),bins = 20,alpha = 0.2,color = "#56B4E9",fill = "#56B4E9")+
+  xlab("dN / dS")+
+  ylab("Unknown protein families")+
+  theme_classic()+
+  theme(
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20))
+
 #######
-# average identity plot (fig. 1A)
+# average identity plot (fig. 1C)
 #########
 
 ggplot(stats)+
@@ -112,21 +128,8 @@ ggplot(stats)+
     axis.text=element_text(size=20))+
   xlim(0,100)
 
-######
-# dnds distribution (fig. 1A)
-######
-
-ggplot(dnds_data)+
-  geom_histogram(aes(x = dnds),bins = 20,alpha = 0.2,color = "#56B4E9",fill = "#56B4E9")+
-  xlab("dN / dS")+
-  ylab("Unknown protein families")+
-  theme_classic()+
-  theme(
-    text=element_text(size=20),
-    axis.title=element_text(size=20),
-    axis.text=element_text(size=20))
 ####
-# size distribution novel fams vs eggnog and small peptides (fig. 1B)
+# size distribution novel fams vs eggnog and small peptides (fig. 1D-E)
 #####
 
 # load short pep and eggnog lens
@@ -191,86 +194,8 @@ ggplot(data_all[order(data_all$variable, decreasing = F),])+
   scale_color_manual(values=c("#E69F00","#56B4E9"),labels = c("Eggnog","Novel"))+
   scale_fill_manual(values=c("#E69F00","#56B4E9"),labels = c("Eggnog","Novel"))
 
-
 ####
-# lineage specificity (fig. 1E)
-####
-
-
-# number of fams spaning multiple phylums / in the same genus
-(nrow(data[data$lca == 's',]) + nrow(data[data$lca == 'g',]))  / nrow(data)
-(nrow(data[data$lca == 'd',]) + nrow(data[data$lca == 'r',]))  / nrow(data)
-(nrow(data[data$lca == 'r',]))  / nrow(data)
-
-# mobile stats for root and genus
-nrow(data[data$plasmid==T,]) / nrow(data)
-nrow(data[data$lca=='r' & data$plasmid==T,]) / nrow(data[data$lca=='r',])
-nrow(data[(data$lca=='r' | data$lca == 'd') & data$plasmid==T,]) / nrow(data[data$lca=='r' | data$lca == 'd' ,])
-nrow(data[data$lca=='g' & data$plasmid==T,]) / nrow(data[data$lca=='g',])
-
-# viral stats for root and genus 
-nrow(data[data$viral==T,]) / nrow(data)
-nrow(data[data$lca=='r' & data$viral==T,]) / nrow(data[data$lca=='r',])
-nrow(data[(data$lca=='r' | data$lca == 'd') & data$viral==T,]) / nrow(data[data$lca=='r' | data$lca == 'd' ,])
-nrow(data[data$lca=='g' & data$viral==T,]) / nrow(data[data$lca=='g',])
-
-# identity in different lcas
-mean(data[data$lca %in% c('s','g'),]$av_id)
-mean(data[data$lca %in% c('d','r'),]$av_id)
-(nrow(data[data$lca == 'r',]))  / nrow(data)
-
-# stats for multibiome
-data_st = data %>% 
-  filter(!is.na(data$num_biomes))
-nrow(data_st[data_st$num_biomes == 40 & data_st$viral ==T,]) / nrow(data_st[data_st$num_biomes==40,])
-
-
-# plot
-data_multi_p = data %>% 
-  group_by(lca,plasmid) %>% 
-  #filter(! is.na(multibiome)) %>% 
-  summarise(n = n()) %>% 
-  group_by(lca) %>% 
-  mutate(prop = proportions(n)) %>% 
-  filter(!lca %in% 's') %>% 
-  group_by(lca) %>% 
-  mutate(n1 = sum(n)) %>% 
-  filter(plasmid == TRUE)
-
-data_multi_v = data %>% 
-  group_by(lca,viral) %>% 
-  #filter(! is.na(multibiome)) %>% 
-  summarise(n = n()) %>% 
-  group_by(lca) %>% 
-  mutate(prop = proportions(n)) %>% 
-  filter(!lca %in% 's') %>% 
-  group_by(lca) %>% 
-  mutate(n1 = sum(n)) %>% 
-  filter(viral == TRUE)
-
-
-data_multi_p$lca = factor(data_multi_p$lca,levels = c('r',"d","p","c","o","f","g"))
-ggplot() +
-  geom_bar(data = data_multi_p,aes(x = lca, y = n1),stat = 'identity',fill = 'grey80')+
-  #  geom_point(aes(x = lca, y = prop*1000000))+
-  geom_line(data = data_multi_p,aes(x = lca, y = prop*1000000,group = plasmid),size = 1.5,color = 'blue')+
-  geom_line(data = data_multi_v,aes(x = lca, y = prop*1000000,group = viral),size = 1.5,color = 'red')+
-  scale_y_continuous(sec.axis = sec_axis(~.*0.000001, name = "Proportion in mobile"))+
-  #  ylim(c(0,0.25))+
-  theme_classic()+
-  theme(legend.position = "none",
-        text=element_text(size=20),
-        axis.title=element_text(size=20),
-        axis.text=element_text(size=20)) +
-  ylab("Unknown protein families")+
-  xlab("Lineage specificity")+
-  scale_x_discrete(name ="Lineage specificity", 
-                   labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
-
-
-
-####
-# habitat distribution (fig. 1F)
+# habitat distribution (fig. 3B)
 #####
 
 data_multi_p = data %>% 
@@ -313,9 +238,84 @@ ggplot()+
   
 
 
+####
+# lineage specificity (fig. 3C)
+####
+
+
+# number of fams spaning multiple phylums / in the same genus
+(nrow(data[data$lca == 's',]) + nrow(data[data$lca == 'g',]))  / nrow(data)
+(nrow(data[data$lca == 'd',]) + nrow(data[data$lca == 'r',]))  / nrow(data)
+(nrow(data[data$lca == 'r',]))  / nrow(data)
+
+# mobile stats for root and genus
+nrow(data[data$plasmid==T,]) / nrow(data)
+nrow(data[data$lca=='r' & data$plasmid==T,]) / nrow(data[data$lca=='r',])
+nrow(data[(data$lca=='r' | data$lca == 'd') & data$plasmid==T,]) / nrow(data[data$lca=='r' | data$lca == 'd' ,])
+nrow(data[data$lca=='g' & data$plasmid==T,]) / nrow(data[data$lca=='g',])
+
+# viral stats for root and genus 
+nrow(data[data$viral==T,]) / nrow(data)
+nrow(data[data$lca=='r' & data$viral==T,]) / nrow(data[data$lca=='r',])
+nrow(data[(data$lca=='r' | data$lca == 'd') & data$viral==T,]) / nrow(data[data$lca=='r' | data$lca == 'd' ,])
+nrow(data[data$lca=='g' & data$viral==T,]) / nrow(data[data$lca=='g',])
+
+# identity in different lcas
+mean(data[data$lca %in% c('s','g'),]$av_id)
+mean(data[data$lca %in% c('d','r'),]$av_id)
+(nrow(data[data$lca == 'r',]))  / nrow(data)
+
+# stats for multibiome
+data_st = data %>% 
+  filter(!is.na(data$num_biomes))
+nrow(data_st[data_st$num_biomes == 40 & data_st$viral ==T,]) / nrow(data_st[data_st$num_biomes==40,])
+
+
+# plot
+data_multi_p = data %>% 
+  group_by(lca,plasmid) %>%  
+  summarise(n = n()) %>% 
+  group_by(lca) %>% 
+  mutate(prop = proportions(n)) %>% 
+  filter(!lca %in% 's') %>% 
+  group_by(lca) %>% 
+  mutate(n1 = sum(n)) %>% 
+  filter(plasmid == TRUE)
+
+data_multi_v = data %>% 
+  group_by(lca,viral) %>% 
+  #filter(! is.na(multibiome)) %>% 
+  summarise(n = n()) %>% 
+  group_by(lca) %>% 
+  mutate(prop = proportions(n)) %>% 
+  filter(!lca %in% 's') %>% 
+  group_by(lca) %>% 
+  mutate(n1 = sum(n)) %>% 
+  filter(viral == TRUE)
+
+
+data_multi_p$lca = factor(data_multi_p$lca,levels = c('r',"d","p","c","o","f","g"))
+ggplot() +
+  geom_bar(data = data_multi_p,aes(x = lca, y = n1),stat = 'identity',fill = 'grey80')+
+  #  geom_point(aes(x = lca, y = prop*1000000))+
+  geom_line(data = data_multi_p,aes(x = lca, y = prop*1000000,group = plasmid),size = 1.5,color = 'blue')+
+  geom_line(data = data_multi_v,aes(x = lca, y = prop*1000000,group = viral),size = 1.5,color = 'red')+
+  scale_y_continuous(sec.axis = sec_axis(~.*0.000001, name = "Proportion in mobile"))+
+  #  ylim(c(0,0.25))+
+  theme_classic()+
+  theme(legend.position = "none",
+        text=element_text(size=20),
+        axis.title=element_text(size=20),
+        axis.text=element_text(size=20)) +
+  ylab("Unknown protein families")+
+  xlab("Lineage specificity")+
+  scale_x_discrete(name ="Lineage specificity", 
+                   labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
+
+
 
 #####
-# dnds synapomorphic vs non synapomorphic (fig. 2B)
+# dnds synapomorphic vs non synapomorphic (fig. 3B)
 #####
 
 # mobile stats for synapos / non synapos
