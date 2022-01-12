@@ -1,5 +1,5 @@
 # NovFamilies
-Scripts used for generating the results presented in Functional and evolutionary significance of unknown genes from uncultivated taxa, and supplementary tables in the manuscript (``Sup.tables.xlsx``).  
+Scripts used for generating the results presented in Functional and evolutionary significance of unknown genes from uncultivated taxa, and supplementary tables in the manuscript (``Supplementary tables.xlsx``).  
 
 ## Database building
 
