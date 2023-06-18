@@ -202,7 +202,7 @@ data_multi_p = data %>%
   group_by(plasmid,num_biomes) %>% 
   summarise(n = n()) %>% 
   group_by(num_biomes) %>% 
-  mutate(prop = proportions(n)) %>% # calculate proportions num_biomes  
+  mutate(prop_p = proportions(n)) %>% # calculate proportions num_biomes  
   filter(! is.na(num_biomes)) %>% 
   filter(plasmid == TRUE) %>% 
   filter(num_biomes<80)
@@ -212,30 +212,29 @@ data_multi_v = data %>%
   group_by(viral,num_biomes) %>% 
   summarise(n = n()) %>% 
   group_by(num_biomes) %>% 
-  mutate(prop = proportions(n)) %>% # calculate proportions num_biomes  
+  mutate(prop_v = proportions(n)) %>% # calculate proportions num_biomes  
   filter(! is.na(num_biomes)) %>% 
   filter(viral == TRUE) %>% 
   filter(num_biomes<80)
 
-table(data$rare)
-data$rare <- factor(data$rare,                 
-                         levels = c("< 10 samples", "11-50 samples", ">50 samples"))
+data_multi_mov =  merge(data_multi_p,data_multi_v,by = "num_biomes") %>% 
+  gather(key = "origin",value = "prop",prop_v,prop_p)
+
+
 ggplot()+
-  geom_histogram(data = data,aes(x = num_biomes,fill = rare),alpha = 0.6,position = "identity",bins = 71)+
-  xlim(c(0,70))+
-  geom_line(data = data_multi_p,aes(x = num_biomes, y = prop*100000,group = plasmid),size = 1.5,color = "blue")+
-  geom_line(data = data_multi_v,aes(x = num_biomes, y = prop*100000,group = viral),size = 1.5,color = "red")+
+  geom_histogram(data = data,aes(x = num_biomes,fill = rare),alpha = 0.6,position = "identity",bins = 70)+
+  xlim(c(1,70))+
+  scale_fill_manual(values = c("#d8b365", "#5ab4ac","grey"),name= "Rareness",labels = c("1-10 samples", "11-50 samples", "> 50 samples"))+
+  geom_line(data = data_multi_mov,aes(x = num_biomes, y = prop*100000,color = origin),size = 1)+
   scale_y_continuous(sec.axis = sec_axis(~.*1/100000, name = "Proportion in mobile"))+
   xlab("Habitats")+
   ylab("Unknown protein families")+
-  scale_fill_manual(values = c("#d8b365", "#5ab4ac","grey"),name= "rareness")+
   theme_classic()+
   theme(
         text=element_text(size=20),
         axis.title=element_text(size=20),
         axis.text=element_text(size=20))+
-  annotate("text", x = 40, y = 15000, label = "R = 0.94",size = 7)
-  
+  scale_color_manual(labels = c("Plasmid","Viral") ,values = c("#CC6666", "#9999CC"),name= "Mobile")
 
 
 ####
@@ -273,10 +272,10 @@ nrow(data_st[data_st$num_biomes == 40 & data_st$viral ==T,]) / nrow(data_st[data
 
 # plot
 data_multi_p = data %>% 
-  group_by(lca,plasmid) %>%  
+  group_by(lca,plasmid) %>% 
   summarise(n = n()) %>% 
   group_by(lca) %>% 
-  mutate(prop = proportions(n)) %>% 
+  mutate(prop_p = proportions(n)) %>% 
   filter(!lca %in% 's') %>% 
   group_by(lca) %>% 
   mutate(n1 = sum(n)) %>% 
@@ -284,33 +283,33 @@ data_multi_p = data %>%
 
 data_multi_v = data %>% 
   group_by(lca,viral) %>% 
-  #filter(! is.na(multibiome)) %>% 
   summarise(n = n()) %>% 
   group_by(lca) %>% 
-  mutate(prop = proportions(n)) %>% 
+  mutate(prop_v = proportions(n)) %>% 
   filter(!lca %in% 's') %>% 
   group_by(lca) %>% 
   mutate(n1 = sum(n)) %>% 
   filter(viral == TRUE)
 
+data_multi_mov =  merge(data_multi_p,data_multi_v,by = "lca") %>% 
+  gather(key = "origin",value = "prop",prop_v,prop_p)
 
 data_multi_p$lca = factor(data_multi_p$lca,levels = c('r',"d","p","c","o","f","g"))
 ggplot() +
   geom_bar(data = data_multi_p,aes(x = lca, y = n1),stat = 'identity',fill = 'grey80')+
-  #  geom_point(aes(x = lca, y = prop*1000000))+
-  geom_line(data = data_multi_p,aes(x = lca, y = prop*1000000,group = plasmid),size = 1.5,color = 'blue')+
-  geom_line(data = data_multi_v,aes(x = lca, y = prop*1000000,group = viral),size = 1.5,color = 'red')+
-  scale_y_continuous(sec.axis = sec_axis(~.*0.000001, name = "Proportion in mobile"))+
-  #  ylim(c(0,0.25))+
+  geom_line(data = data_multi_mov,aes(x = lca, y = prop*1000000,color = origin,group = origin),size = 2)+
+  scale_y_continuous(sec.axis = sec_axis(~.*0.0000001, name = "Proportion in mobile"))+
   theme_classic()+
-  theme(legend.position = "none",
+  theme(
         text=element_text(size=20),
         axis.title=element_text(size=20),
         axis.text=element_text(size=20)) +
+  scale_color_manual(labels = c("Plasmid","Viral") ,values = c("#CC6666", "#9999CC"),name= "Mobile")+
   ylab("Unknown protein families")+
   xlab("Lineage specificity")+
   scale_x_discrete(name ="Lineage specificity", 
                    labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
+
 
 
 
