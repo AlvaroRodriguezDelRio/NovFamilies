@@ -20,4 +20,9 @@ Scripts used for generating the results presented in Functional and evolutionary
 
 ### Taxonomic distribution
 
-- ``synapos.py``: Calculate synapomorphic families. 
+- ``synapos.py``: Calculate synapomorphic families.
+
+### CRC analysis
+
+- ``CRC_DA_analysis.r``: Differential abundance test
+- ``CRC_prediction.r``: Logaritmic regression and machine learning algorithms for CRC prediction
