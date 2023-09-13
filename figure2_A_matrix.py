@@ -9,15 +9,15 @@ import json
 
 
 def load_lineage_info():
-    metagenomes = pd.read_csv('/data/jhc/freezer/public/GTDB/GTDB_rev95/reps_from_metagenomes_or_singlecell.txt',
+    metagenomes = pd.read_csv('reps_from_metagenomes_or_singlecell.txt',
                                     sep='\t', names=['genome', 'rep', 'lineage', 'src'])
     metagenomes[['d','p', 'c', 'o', 'f', 'g', 's']] = metagenomes['lineage'].str.split(';', expand=True)
 
-    no_metagenomes =  pd.read_csv('/data/jhc/freezer/public/GTDB/GTDB_rev95/reps_no_from_metagenomes.txt',
+    no_metagenomes =  pd.read_csv('reps_no_from_metagenomes.txt',
                                     sep='\t', names=['genome', 'rep', 'lineage', 'src'])
     no_metagenomes[['d','p', 'c', 'o', 'f', 'g', 's']] = no_metagenomes['lineage'].str.split(';', expand=True)
 
-    genome2taxonomy =  pd.read_csv('/data/jhc/cold/MAGs/combined/genome2taxonomy.r202.tab',
+    genome2taxonomy =  pd.read_csv('genome2taxonomy.r202.tab',
                                     sep='\t', names=['genome', 'lineage'])
     genome2taxonomy[['d','p', 'c', 'o', 'f', 'g', 's']] = genome2taxonomy['lineage'].str.split(';', expand=True)
 
@@ -104,7 +104,7 @@ def load_all_annots():
       name2lineage = defaultdict(lambda:set())
 
       # load for bacteria
-      for line in open("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/bac120_taxonomy_r202.tsv"):
+      for line in open("bac120_taxonomy_r202.tsv"):
             line = line.rstrip()
             genome,annot = line.split('\t')
             genomeid2annot[genome] = annot
@@ -112,7 +112,7 @@ def load_all_annots():
                 name2lineage[tax].add(annot)
 
       # load for archaea
-      for line in open("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/ar122_taxonomy_r202.tsv"):
+      for line in open("ar122_taxonomy_r202.tsv"):
           line = line.rstrip()
           genome,annot = line.split('\t')
           genomeid2annot[genome] = annot
@@ -174,8 +174,6 @@ def format_tree(tree,genomeid2annot):
 # layout function
 def layout(node):
 
-    global ko2col
-
     node.img_style['size'] = 0
     node.img_style['hz_line_width'] = 2
     node.img_style['vt_line_width'] = 2
@@ -186,10 +184,8 @@ def layout(node):
 
     aligned_column = 0
 
-    #text_face = AttrFace("name", fsize=10)
-    #add_face_to_node(text_face, node, 0, position="branch-right")
-
     if node.is_leaf():
+
         # bars for representing number of cultivated / uncultivated genomes
         bar_cult = ""
         if node.name in taxa2metag_genomes and node.name in taxa2refseq_genomes:# and node.name in taxa2totalgenomes:
@@ -212,8 +208,13 @@ def layout(node):
               for route,col in route_especific_ko_order[ko].items():
                   color_route = route2color[route]
 
+                  #circle_face = CircleFace(radius=number*3, color=color_route)
+                  #circle_face.opacity = 1
+                  #add_face_to_node(circle_face, node, column= col, position="aligned")
+
                   rectface = RectFace(10,10, fgcolor=color_route, bgcolor=color_route)
                   add_face_to_node(rectface, node, column=col + 1, position='aligned')
+
 
 ######################## start ################################
 
@@ -226,8 +227,8 @@ def layout(node):
 genomeid2annot,name2lineage = load_all_annots()
 
 # load gtdb trees and combine
-tree = Tree("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/bac120_r202.tree",format = 1,quoted_node_names = True)
-tree_arch = Tree("/data/jhc/cold/MAGs/novel_fams-v2/lca_per_fam/images/ete/ar122_r202.tree",format = 1,quoted_node_names = True)
+tree = Tree("bac120_r202.tree",format = 1,quoted_node_names = True)
+tree_arch = Tree("ar122_r202.tree",format = 1,quoted_node_names = True)
 root_node_bac = next(n.get_tree_root() for n in tree.traverse())
 root_node_arch = next(n.get_tree_root() for n in tree_arch.traverse())
 root_node_bac.add_child(root_node_arch)
@@ -255,20 +256,18 @@ for line in open("/data/jhc/cold/MAGs/novel_fams-v2/NoISO-fixed.3sp.taxonomy_by_
     fam = line.split('\t')[0]
     tax = line.split('\t')[-1]
     for t in tax.split(';'):
-        if t == 'p__Cyanobacteriota':
-            t = "p__Cyanobacteria"
         if t.split('__')[-1] != '':
             fam2tax[fam].add(t)
 
 
 # load filtered family list
 filtered_families = set()
-for line in open("/data/jhc/cold/MAGs/novel_fams-v2/clustering/filtering/filtered_families.RNAcode.noPfamAcov.BUSTED.noPVOGs.noPfamB.noRefSeq_blastx.nspecies2.txt"):
+for line in open("ffams.txt"):
     line = line.rstrip()
     filtered_families.add(line)
 
 code2fam = {}
-for line in open('../../../microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.fam2codes.tsv'):
+for line in open('microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.fam2codes.tsv'):
     fam,code = list(map(str.strip,line.split('\t')))
     code2fam[code] = fam
 
@@ -277,11 +276,11 @@ taxa2kos = defaultdict(lambda:Counter())
 kos_present = set()
 kos_counter = Counter()
 taxa_with_kos = set()
-for line in open('../../hor_conservation/kpath_benchmark_per_nfam.min_n_benchmark.params.sel_codes_Joaquin_no_Euk.tab'):
+for line in open('kpath_benchmark_per_nfam.min_n_benchmark.params.sel_codes.tab'):
     fam_code,annot,acc,param,desc =  list(map(str.strip,line.split('\t')))
     if float(acc) >= 0.9:
         fam = code2fam[fam_code]
-        if fam in filtered_families:# and annot != '00190':
+        if fam in filtered_families:
             kos_counter[annot] += 1
             for tax in fam2tax[fam]:
                 taxa2kos[tax][annot] += 1
@@ -294,7 +293,7 @@ route_set = set()
 route_especific_ko_order = defaultdict(lambda:{})
 pos = 0
 ko2enzyme_name = {}
-for line in open('/scratch/alvaro/data/KEGG_maps_selected_seleccionados_Joaquin.tab'):
+for line in open('/scratch/alvaro/data/KEGG_maps_selected.tab'):
     route, ko, tr = list(map(str.strip,line.split('\t')))
     ko = ko.replace('map','')
     if ko in kos_present: # if any prediction in neigh
@@ -344,11 +343,12 @@ for ko in route_especific_ko_order:
           txt_face.rotation = 90
           txt_face.vt_align = 0
           ts.aligned_header.add_face(txt_face, column=pos + 1)# +2 for adding space between num genomes and matrix, delete otherwise (also in matrix coordinates in layout function)
+
           bar_h = max(int(math.log2(kos_counter[ko])*20),1)
           bar = RectFace(10,bar_h, fgcolor=color_route, bgcolor=color_route)
           bar.vt_align = 2
-          ts.aligned_header.add_face(bar, column=pos + 1)## +2 for adding space between num genomes and matrix, delete otherwise (also in matrix coordinates in layout function)
 
+          ts.aligned_header.add_face(bar, column=pos + 1)
 
 
 # create tree layout and export
