@@ -12,7 +12,6 @@ library(MASS)
 library(glmnet)
 library(pROC)
 
-setwd("~/analysis/nov_fams_v2/CRC/pca/")
 
 # 70 -30 train test ml function (logistic regression) 
 train_test = function(data, samples){
