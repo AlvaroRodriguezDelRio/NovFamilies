@@ -9,15 +9,15 @@ import numpy as np
 
 
 def load_lineage_info():
-    metagenomes = pd.read_csv('/data/jhc/freezer/public/GTDB/GTDB_rev95/reps_from_metagenomes_or_singlecell.txt',
+    metagenomes = pd.read_csv('reps_from_metagenomes_or_singlecell.txt',
                                     sep='\t', names=['genome', 'rep', 'lineage', 'src'])
     metagenomes[['d','p', 'c', 'o', 'f', 'g', 's']] = metagenomes['lineage'].str.split(';', expand=True)
 
-    no_metagenomes =  pd.read_csv('/data/jhc/freezer/public/GTDB/GTDB_rev95/reps_no_from_metagenomes.txt',
+    no_metagenomes =  pd.read_csv('reps_no_from_metagenomes.txt',
                                     sep='\t', names=['genome', 'rep', 'lineage', 'src'])
     no_metagenomes[['d','p', 'c', 'o', 'f', 'g', 's']] = no_metagenomes['lineage'].str.split(';', expand=True)
 
-    genome2taxonomy =  pd.read_csv('/data/jhc/cold/MAGs/combined/genome2taxonomy.r202.tab',
+    genome2taxonomy =  pd.read_csv('genome2taxonomy.r202.tab',
                                     sep='\t', names=['genome', 'lineage'])
     genome2taxonomy[['d','p', 'c', 'o', 'f', 'g', 's']] = genome2taxonomy['lineage'].str.split(';', expand=True)
 
@@ -50,7 +50,7 @@ def load_annots(filt_fams):
 
     # take families per genome and save genome tax
     genome2tax = {}
-    for line in open("/data/jhc/cold/MAGs/combined/genome2taxonomy.r202.tab"):
+    for line in open("genome2taxonomy.r202.tab"):
         genome,tax = list(map(str.strip,line.split('\t')))
         genome = genome.replace('.oneLine','')
         genome2tax[genome] = tax
@@ -58,7 +58,7 @@ def load_annots(filt_fams):
 
 
     genome2fam = defaultdict(lambda:set())
-    for line in open("../../../NoISO-fixed.3sp.taxonomy_by_member.tsv"):
+    for line in open("NoISO-fixed.3sp.taxonomy_by_member.tsv"):
         line = line.rstrip()
         fam = line.split('\t')[0]
         member = line.split('\t')[5]
@@ -111,7 +111,7 @@ def load_all_annots():
 
 # load final set of fams
 filt_fams = set()
-for line in open("/data/jhc/cold/MAGs/novel_fams-v2/clustering/filtering/filtered_families.RNAcode.noPfamAcov.BUSTED.noPVOGs.noPfamB.noRefSeq_blastx.txt"):
+for line in open("ffams.txt"):
     line = line.rstrip()
     filt_fams.add(line)
 
@@ -160,8 +160,8 @@ tree_out = open("tree_new.nw","w")
 tree_out.write(tree.write(format = 1))
 tree_out.close()
 
-# print number of genomes table
-n_file = open("fraction_uncultivated_cultivated_new.tab",'w')
+# print % of uncutivated per lineage
+n_file = open("fraction_uncultivated_cultivated.tab",'w')
 for node in tree.iter_leaves():
     prop = 0
     if node.name in taxa2metag_genomes and node.name in taxa2refseq_genomes:
@@ -171,17 +171,10 @@ for node in tree.iter_leaves():
     n_file.write(node.name + '\t' + str(prop) + '\n')
 n_file.close()
 
-
 # print bars table
-n_file = open("leave_abundance_new.tab",'w')
+n_file = open("leave_abundance.tab",'w')
 for node in tree.iter_leaves():
     number = node2number[node.name]
     n_file.write(node.name + "\t" + str(number) + '\n')
 n_file.close()
 
-# print bats table, abundance
-n_file = open("leave_abundance.raw.new.tab",'w')
-for node in tree.iter_leaves():
-    number = node2number[node.name]
-    n_file.write(node.name + "\t" + str(number) + '\n')
-n_file.close()
