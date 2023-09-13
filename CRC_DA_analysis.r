@@ -7,14 +7,13 @@ library(tidyr)
 
 
 # load abundance data per novel family / KO
-setwd("~/analysis/nov_fams_v2/CRC/DE_analysis/")
-data_n = read.csv("abs_per_fam_all.f_fams.h.tab", header = T, stringsAsFactors=F)
+data_n = read.csv("abs_per_fam_all.f_fams.tab", header = T, stringsAsFactors=F)
 data_k = read.csv("kos_abs.tab")
 
 # merge kos and nfam data (same sample order in columns)
 data = rbind(data_n,data_k)
 
-samples = read.table("metadata.tsv.f",header = T)
+samples = read.table("metadata.tsv",header = T)
 
 # include colonoscopy into study for correcting in pvalue function for calculating p-values
 samples <- samples %>%
