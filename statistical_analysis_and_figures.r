@@ -314,14 +314,14 @@ ggplot() +
 
 
 #####
-# dnds synapomorphic vs non synapomorphic (fig. 3C)
+# dnds synapomorphic vs non synapomorphic (Fig. 3C)
 #####
 
 # mobile stats for synapos / non synapos
 nrow(data[data$plasmid==T & data$synapo == T & data$synapo_lev %in% c('p','c','o'),]) / nrow(data[data$synapo == T & data$synapo_lev %in% c('p','c','o'),])
 nrow(data[data$plasmid==T,]) / nrow(data)
 
-syn_fams = read.table("../syanpos/synapo_fams.tab",sep = '\t')
+syn_fams = read.table("synapo_fams.tab",sep = '\t')
 names(syn_fams) = c("lev","lev_name","fam")
 syn_fams = syn_fams %>% 
   mutate(syn = case_when(lev %in% c('p','c','o')~TRUE,
@@ -331,9 +331,7 @@ syn_fams = syn_fams %>%
 data_c = dnds_data %>% 
   mutate(syn = case_when(fam %in% syn_fams$fam ~ TRUE,
                          !fam %in% syn_fams$fam ~ FALSE)) %>% 
-  filter(!is.na(as.numeric(dnds))) %>% 
-  filter( fam %in% filt_fams$V1 )
-data_c$dnds = as.numeric(data_c$dnds)
+    filter( fam %in% filt_fams$V1 )
 
 ggplot(all_d,aes(x = syn,y = dnds)) +
   geom_boxplot(aes(x = syn,y = dnds))+
@@ -347,6 +345,200 @@ ggplot(all_d,aes(x = syn,y = dnds)) +
   xlab("")+
   ylab("dN/dS")+
   scale_x_discrete(labels=c("TRUE" = "Synapomorfic", "FALSE" = "Non-synapomorfic"))
+
+#####
+# maximum conservation score synapomorphic vs non synapomorphic  (Fig. 3D)
+#####
+
+data = read.table("max_score_prev_pos_per_fam.tab")
+data = data %>% 
+  filter(fam %in% f_fams$V1) %>% 
+  mutate(syn = case_when(V1 %in% syn$V1 ~"synapomorphic",
+                         !V1 %in% syn$V1 ~ "non-synapomorphic"))
+
+ggplot(data,aes(x = syn, y = max_cons))+
+  geom_boxplot(aes(x = syn, y = V2))+
+  geom_signif(
+    comparisons = list(c("synapomorphic","non-synapomorphic")),
+    map_signif_level = TRUE)+
+  ylab("Maximum genomic context conservation score")+
+  xlab("")+
+  coord_flip()+
+  theme_classic()+
+  theme(legend.position = "none",
+        text=element_text(size=20),
+        axis.title=element_text(size=20),
+        axis.text=element_text(size=20))
+
+
+####
+# CRC DA gene families (Fig 5A)
+####
+
+kos = read.csv("kos_DE.abs.tab",header = T)
+nfams = read.csv("nfams_DE.abs.txt", header = T)
+samples = read.table("metadata.tsv",header = T)
+samples = samples[,c(1,6,11)] #  CRC - CTR
+
+
+# load abs
+kos = kos %>% 
+  gather(key = "Sample_ID", value = "abs", 2:ncol(kos))
+nfams = nfams %>% 
+  gather(key = "Sample_ID", value = "abs", 2:ncol(nfams))
+
+# load pvals / fcs
+pvals = read.table("nov_fams_kos.CRC.pvalues_block.f_fams.tab",header = T)
+fc = read.table("nov_fams_kos.CRC.fold_change.f_fams.tab",header = T)
+names(fc) = c("clusters","fc")
+dataP = pvals %>% 
+  left_join(fc,by = "clusters")
+names(dataP) = c("cluster","pval","fc")
+
+# join
+data = rbind(kos,nfams)
+data = merge(data,samples,by = "Sample_ID") %>% 
+  mutate(origin = case_when(str_detect(cluster,"ko")~"KO",
+                            !str_detect(cluster,"ko")~"nfam")) %>%
+  left_join(dataP,by = "cluster") %>% 
+  mutate(direction = case_when(fc >= 0~ "CTR",
+                               fc < 0~ "CRC")) %>%
+  group_by(direction,origin) %>% 
+  group_by(cluster) %>% 
+  mutate(n_zeros = sum(abs == 0))
+
+data$pop_CRC = paste(data$Group,data$Study)
+
+# create individual datasets for CRC and CTR
+crc_data = data %>% 
+  filter(Group == "CRC" & origin == "nfam") %>% 
+  mutate(join = paste(cluster,Study)) %>% 
+  group_by(join) %>% 
+  mutate(mean_abs_per_cluster_per_group_per_pop = mean(abs)) %>% 
+  dplyr::select(!c(Sample_ID,abs)) %>% 
+  unique()
+
+ctr_data = data %>% 
+  filter(Group == "CTR"  & origin == "nfam") %>% 
+  mutate(join = paste(cluster,Study)) %>% 
+  group_by(join) %>% 
+  mutate(mean_abs_per_cluster_per_group_per_pop = mean(abs)) %>% 
+  dplyr::select(!c(Sample_ID,abs)) %>% 
+  unique()
+
+# join for calculating difference of abs 
+d_plot = merge(crc_data,ctr_data,by = "join")
+d_plot$diff_crc_ctr = d_plot$mean_abs_per_cluster_per_group_per_pop.x - d_plot$mean_abs_per_cluster_per_group_per_pop.y
+
+# calculate mean diff of abs per pop for ordering plot
+d_plot = d_plot %>% 
+  group_by(cluster.x) %>% 
+  mutate(mean_diff = mean(diff_crc_ctr))
+d_plot$cluster = fct_reorder(d_plot$cluster.x, desc(d_plot$diff_crc_ctr))
+
+# rearrange factor values
+d_plot = d_plot %>% 
+  mutate(Study = case_when(Study.x == "AT.CRC"~"AT",
+                           Study.x == "CN.CRC"~"CN",
+                           Study.x == "DE.CRC"~"DE",
+                           Study.x == "FR.CRC"~"FR",
+                           Study.x == "US.CRC"~"US"))
+
+d_plot$Direction = d_plot$direction.x
+
+# plot
+p1 = ggplot(d_plot,aes(y = cluster, x =  diff_crc_ctr))+
+  geom_point(aes(shape = Study, color = Direction))+
+  stat_summary(
+    geom = "point",
+    fun = "mean",
+    col = "black",
+    size = 2
+  )+
+  stat_summary(position=position_dodge(0.95),geom="errorbar")+
+  theme_classic() +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        text=element_text(size=15),
+        axis.title=element_text(size=15),
+  )  + 
+  geom_vline(xintercept = 0)+
+  xlab("Mean abundance difference")+
+  ylab("Novel gene family")+
+  scale_fill_brewer(palette="Dark2")+
+  scale_color_brewer(palette="Dark2")
+
+  
+# p-values
+d_prev = d_plot %>% 
+  dplyr::select(cluster,pval.x,direction.x) %>% 
+  unique()
+
+p2 = ggplot(d_prev)+
+  geom_bar(aes(y = pval.x, x = cluster,fill = direction.x),stat = "identity")+
+  coord_flip()+
+  theme_classic()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        text=element_text(size=15),
+        axis.title=element_text(size=15))+
+  ylab("q-value")+
+  scale_fill_brewer(palette="Dark2")+
+  scale_y_continuous(limits=c(0, 0.01),breaks = c(0,0.01))+
+  theme(legend.position = "none")
+    
+
+# prevalence
+d_prev = d_plot %>% 
+  dplyr::select(cluster,n_zeros.x,direction.x) %>% 
+  unique()
+
+p3 = ggplot(d_prev)+
+  geom_bar(aes(y = (575-n_zeros.x) / 575, x = cluster,fill = direction.x),stat = "identity")+
+  coord_flip()+
+  theme_classic()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        text=element_text(size=15),
+        axis.title=element_text(size=15))+
+  ylab("Prevalence")+
+  scale_fill_brewer(palette="Dark2")+
+  scale_y_continuous(limits=c(0, 1),breaks = c(0,0.5,1))+
+  theme(legend.position = "none")
+
+
+p1 + p2 + p3 +  plot_layout(guides = 'collect')+ plot_layout(widths = c(5,1,1))
+
+####
+# CRC AUC comparison (Fig 5C)
+####
+
+data = read.table("linear_regression.70Train_30Test.lambda.1se.tab",header = T,sep = ",")
+data$origin = factor(data$origin,levels = c("KOs","nfams","KOs + nfams"))
+
+data = data %>% 
+  mutate(origin_ = case_when(origin == "nfams"~"FESNov\n fams",
+                            origin == "KOs + nfams"~"KOs + \nFESNov fams",
+                            origin == "KOs"~"KOs"))
+
+data$origin_ = factor(data$origin_,levels = c("KOs", "FESNov\n fams","KOs + \nFESNov fams"))
+p1 = ggplot(data,aes(x = origin_,y = auc))+
+  geom_boxplot()+
+  theme_classic()+
+  geom_signif(
+    comparisons = list(c("KOs", "KOs + \nFESNov fams")),
+    map_signif_level = TRUE
+  ) +
+  theme(text=element_text(size=25),
+           axis.title=element_text(size=25),
+  )+
+  ylab ("AUC")+
+  xlab("Dataset")
+
+
+
 
 
 
