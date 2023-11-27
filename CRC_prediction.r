@@ -24,9 +24,7 @@ train_test = function(data, samples){
   aucs = list()
   accs = list()
   n = 0
-  for (j in 1:20) {
-    
-    
+  for (j in 1:50) {
       set.seed(n)
       
       # get train and test data
@@ -157,7 +155,7 @@ names(samples) = c("sample","Group","population")
 
 
 #####
-# ml logistic regression 70% train - 30% test
+# logistic regression 70% train - 30% test
 #####
 
 
@@ -173,7 +171,7 @@ tt = rbind(ttko,ttnfam,ttboth)
 write.csv(tt,"prediction_results/linear_regression.30Train_70Test.lambda.min.tab")
 
 #####
-# ml random forest 30% train - 70% test, 1000 random nfams / kos / combination
+# Random forest 30% train - 70% test, 1000 random nfams / kos / combination
 #####
 
 
