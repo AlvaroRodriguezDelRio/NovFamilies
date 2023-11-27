@@ -224,8 +224,7 @@ ggplot(data_syn,aes(x = syn, y = max_cons))+
 d_plot = read.table("Figure 5A source data.tab",header = T)
 
 # plot
-p1 = ggplot(d_plot %>% 
-              arrange(mean_diff),aes(y = reorder(cluster,-mean_diff), x =  diff_crc_ctr))+
+p1 = ggplot(d_plot,aes(y = reorder(cluster,-mean_diff), x =  diff_crc_ctr))+
   geom_point(aes(shape = Study, color = direction))+
   stat_summary(
     geom = "point",
