@@ -3,6 +3,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
+setwd("~/../Downloads/nov_fams_data")
+
 #####
 # load data
 #####
@@ -10,39 +12,40 @@ library(tidyr)
 # filtered fams
 f_fams = read.table("ffams.txt")
 
-
 # dnds for each fam
-dnds_data = read.table("busted_final.tab")
-names(dnds_data) = c("fan","dnds")
+dnds_data = read.table("dnds.tab")
+names(dnds_data) = c("fam","dnds")
 dnds_data = dnds_data %>% 
-  filter(fan %in% f_fams$V1)
+  filter(fam %in% f_fams$V1)
 dnds_data$dnds = as.numeric(dnds_data$dnds)
 
-# number members per fam
-size_dist_data = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.rep_clu_seqs.size_dist.tab")
-names(size_dist_data) = c("cluster","value")
-size_dist_data$variable = "Novel"
-size_dist_data = size_dist_data %>% 
-  filter(cluster %in% f_fams$V1)
 
 # plasflow predictions per fam
-plasflow = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.plasflow_0.95.tab")
+plasflow = read.table("plasflow.tab")
 head(plasflow)
 plasflow = plasflow %>% 
   mutate(plasmid = case_when(V4 > 0 ~ TRUE,
-                            V4 == 0  ~ FALSE)) %>%
+                             V4 == 0  ~ FALSE)) %>%
+  # Extended Data Figure S6a 
+  #mutate(plasmid = case_when(V4/V2 >= 0.3 ~ TRUE,
+  #                          V4/V2 < 0.3  ~ FALSE)) %>%
+  
   select(V1, plasmid)
 
 # seeker predictions per fam 
-seeker = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.seeker_0.95.tab")
+seeker = read.table("seeker.tab")
 seeker = seeker %>% 
   mutate(viral = case_when(V4 >0 ~ TRUE,
-                             V4==0 ~ FALSE)) %>% 
+                           V4==0 ~ FALSE)) %>% 
   select(V1, viral)
 
 # lcas per fam 
 lcas = read.table("lca_per_fam.rank.tab")
-names(lcas) = c("V1","lca")
+
+# Extended Data Figure S6a 
+# lcas = read.table("lca_per_fam.min_80_perc.tab",sep="\t")
+
+names(lcas) = c("V1","lin")
 
 # number habitats per fam  
 num_biomes = read.table("number_biomes_per_fam.eval_1e-3_cov50.tab") #
@@ -54,50 +57,28 @@ nrow(num_biomes)
 number_samples = read.table("number_samples_per_fam.eval_1e-3_cov_50.tab")
 names(number_samples) = c("V1","num_samples")
 
-# number habitats per fam (strict filters)
-number_biomes_90 = read.table("number_biomes_per_fam.id_90_cov_50.tab")
-names(number_biomes_90) = c("V1","num_biomes_90")
-
-# number of detections per fam (strong filters)
-number_samples_90 = read.table("number_samples_per_fam.id_90_cov_50.tab")
-names(number_samples_90) = c("V1","num_samples_90")
 
 # alistat stats for joining with other data
-data_alistat  = read.table("../alg_stats/alistat_stats.tab",header = T)
-n = names(data_alistat)
-n[1] = "V1"
-names(data_alistat) = n
+data_alistat  = read.table("alistat_stats.tab",header = T)
 data_alistat = data_alistat %>% 
   filter(V1 %in% f_fams$V1)
 
 
-# join  data
-data = filt_fams %>% 
+# join data
+data_comb = f_fams %>% 
   left_join(plasflow,by = "V1") %>% 
   left_join(seeker,by = "V1") %>% 
   left_join(lcas,by = "V1") %>% 
   left_join(num_biomes,by = "V1") %>% 
   mutate(multibiome = case_when(num_biomes>1 ~ TRUE,
-                           num_biomes<=1 ~ FALSE)) %>% 
+                                num_biomes<=1 ~ FALSE)) %>% 
   mutate(mobile_vir = case_when(plasmid == T | viral == T ~ T,
                                 plasmid == F & viral == F ~ F)) %>% 
-  mutate(synapo = case_when(V1 %in% synapo_fams$V1 ~ T,
-                            ! V1 %in% synapo_fams$V1 ~ F)) %>% 
-  left_join(synapo_fams,by = "V1") %>% 
   left_join(data_alistat, by = "V1") %>% 
   left_join(number_samples,by = "V1") %>% 
   mutate(rare = case_when(num_samples < 10 ~'< 10 samples',
-                   num_samples>= 10 & num_samples <=50 ~ '11-50 samples',
-                   num_samples >50 ~ ">50 samples")) %>% 
-  left_join(number_biomes_90,by = "V1") %>% 
-  left_join(number_samples_90,by = "V1") %>% 
-  mutate(rare_90 = case_when(num_samples_90 < 10 ~'< 10 samples',
-                          num_samples_90 >= 10 & num_samples_90 <=50 ~ '11-50 samples',
-                          num_samples_90 >50 ~ ">50 samples"))
-
-
-
-
+                          num_samples>= 10 & num_samples <=50 ~ '11-50 samples',
+                          num_samples >50 ~ ">50 samples"))
 
 ######
 # dnds distribution (fig. 1B)
@@ -117,7 +98,7 @@ ggplot(dnds_data)+
 # average identity plot (fig. 1C)
 #########
 
-ggplot(stats)+
+ggplot(data_alistat)+
   geom_histogram(aes(x = av_id),alpha = 0.2,bins =  20,color = "#56B4E9",fill = "#56B4E9")+
   xlab("Average identity")+
   ylab("") + 
@@ -128,32 +109,39 @@ ggplot(stats)+
     axis.text=element_text(size=20))+
   xlim(0,100)
 
+
 ####
-# size distribution novel fams vs eggnog and small peptides (fig. 1D-E)
+# size distribution novel fams vs eggnog and small peptides (fig. 1D)
 #####
 
-# load short pep and eggnog lens
-short_pep = read.table("sequence_len_small_peptide.txt",sep = '\t',header = T)
+
+# Sequence length per FESNov fam 
+size_dist_data = read.table("fam_lens.tab")
+names(size_dist_data) = c("cluster","value")
+size_dist_data$variable = "Novel"
+size_dist_data = size_dist_data %>% 
+  filter(cluster %in% f_fams$V1)
+
+# load short peptides and eggnog lens
+short_pep = read.table("sequence_len_short_peptides_sberro.tab",sep = '\t',header = T)
 short_pep$cluster = "small"
 short_pep$variable = "Small"
 short_pep$value = short_pep$Length.of.peptide
 short_pep$Length.of.peptide = NULL
 
-eggnog = read.table("per_fam_len.all.tab")
+eggnog = read.table("eggnog_len.tab")
 names(eggnog) = c("cluster","value")
 eggnog$variable = "Eggnog"
 
-# combine
-data_all = rbind(size_dist_data,short_pep,eggnog) %>% 
-  filter(!variable %in%  "conensous_len")
+# combine with 
+data_all = rbind(size_dist_data,short_pep,eggnog)
 
-# plot
-ggthemr("dust")
+# plot lengh distribution
 ggplot(data_all[order(data_all$variable, decreasing = F),])+
   geom_histogram(aes(color = variable,fill = variable,x = value),alpha = 0.3,position = "identity")+
   xlim(c(0,1000))+
   labs(fill="",color = "")+
-  ylab(label = "Unknown protein families")+
+  ylab(label = "Protein families")+
   xlab("Gene length")+
   theme_classic()+
   theme(
@@ -164,22 +152,27 @@ ggplot(data_all[order(data_all$variable, decreasing = F),])+
   scale_fill_manual(values=c("#E69F00", "#56B4E9",'Salmon'),labels = c("Eggnog","Novel",  "Small"))
 
 
-# sub plot 
-data_num_sp = read.table("microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.num_sp.tsv")
+####
+# Number of species of FESNov fams vs eggnog (fig. 1E)
+#####
+
+# load data for FESNOv families
+data_num_sp = read.table("nspecies_r202.tab")
 names(data_num_sp) = c("cluster","value")
 data_num_sp$variable = "Novel"
+head(data_num_sp)
 
 data_num_sp = data_num_sp %>% 
-  filter(cluster %in% f_fams$V1)
+  dplyr::filter(cluster %in% f_fams$V1)
 
-# eggnog
+# load data for eggnog
 eggnog = read.table("eggnog_num_tax.all.tab")
 names(eggnog) = c("cluster","value")
 eggnog$variable = "Eggnog"
 
 # combine & plot
-data_all = rbind(data_num_sp,eggnog) %>% 
-  filter(!variable %in%  "conensous_len")
+data_all = rbind(data_num_sp,eggnog)
+
 ggplot(data_all[order(data_all$variable, decreasing = F),])+
   geom_histogram(aes(color = variable,fill = variable,x = value),alpha = 0.3,position = "identity",bins = 50)+
   xlim(c(0,50))+
@@ -198,7 +191,7 @@ ggplot(data_all[order(data_all$variable, decreasing = F),])+
 # habitat distribution (fig. 3B)
 #####
 
-data_multi_p = data %>% 
+data_multi_p = data_comb %>% 
   group_by(plasmid,num_biomes) %>% 
   summarise(n = n()) %>% 
   group_by(num_biomes) %>% 
@@ -208,7 +201,7 @@ data_multi_p = data %>%
   filter(num_biomes<80)
 
 
-data_multi_v = data %>% 
+data_multi_v = data_comb %>% 
   group_by(viral,num_biomes) %>% 
   summarise(n = n()) %>% 
   group_by(num_biomes) %>% 
@@ -222,7 +215,7 @@ data_multi_mov =  merge(data_multi_p,data_multi_v,by = "num_biomes") %>%
 
 
 ggplot()+
-  geom_histogram(data = data,aes(x = num_biomes,fill = rare),alpha = 0.6,position = "identity",bins = 70)+
+  geom_histogram(data = data_comb,aes(x = num_biomes,fill = rare),alpha = 0.6,position = "identity",bins = 70)+
   xlim(c(1,70))+
   scale_fill_manual(values = c("#d8b365", "#5ab4ac","grey"),name= "Rareness",labels = c("1-10 samples", "11-50 samples", "> 50 samples"))+
   geom_line(data = data_multi_mov,aes(x = num_biomes, y = prop*100000,color = origin),size = 1)+
@@ -231,79 +224,51 @@ ggplot()+
   ylab("Unknown protein families")+
   theme_classic()+
   theme(
-        text=element_text(size=20),
-        axis.title=element_text(size=20),
-        axis.text=element_text(size=20))+
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20))+
   scale_color_manual(labels = c("Plasmid","Viral") ,values = c("#CC6666", "#9999CC"),name= "Mobile")
 
 
 ####
-# lineage specificity (fig. 3C)
+# lineage specificity & motility (fig. 3C), also for Extended Data Figure S6
 ####
 
 
-# number of fams spaning multiple phylums / in the same genus
-(nrow(data[data$lca == 's',]) + nrow(data[data$lca == 'g',]))  / nrow(data)
-(nrow(data[data$lca == 'd',]) + nrow(data[data$lca == 'r',]))  / nrow(data)
-(nrow(data[data$lca == 'r',]))  / nrow(data)
-
-# mobile stats for root and genus
-nrow(data[data$plasmid==T,]) / nrow(data)
-nrow(data[data$lca=='r' & data$plasmid==T,]) / nrow(data[data$lca=='r',])
-nrow(data[(data$lca=='r' | data$lca == 'd') & data$plasmid==T,]) / nrow(data[data$lca=='r' | data$lca == 'd' ,])
-nrow(data[data$lca=='g' & data$plasmid==T,]) / nrow(data[data$lca=='g',])
-
-# viral stats for root and genus 
-nrow(data[data$viral==T,]) / nrow(data)
-nrow(data[data$lca=='r' & data$viral==T,]) / nrow(data[data$lca=='r',])
-nrow(data[(data$lca=='r' | data$lca == 'd') & data$viral==T,]) / nrow(data[data$lca=='r' | data$lca == 'd' ,])
-nrow(data[data$lca=='g' & data$viral==T,]) / nrow(data[data$lca=='g',])
-
-# identity in different lcas
-mean(data[data$lca %in% c('s','g'),]$av_id)
-mean(data[data$lca %in% c('d','r'),]$av_id)
-(nrow(data[data$lca == 'r',]))  / nrow(data)
-
-# stats for multibiome
-data_st = data %>% 
-  filter(!is.na(data$num_biomes))
-nrow(data_st[data_st$num_biomes == 40 & data_st$viral ==T,]) / nrow(data_st[data_st$num_biomes==40,])
-
-
 # plot
-data_multi_p = data %>% 
-  group_by(lca,plasmid) %>% 
+data_multi_p = data_comb %>% 
+  group_by(lin,plasmid) %>% 
   summarise(n = n()) %>% 
-  group_by(lca) %>% 
+  group_by(lin) %>% 
   mutate(prop_p = proportions(n)) %>% 
-  filter(!lca %in% 's') %>% 
-  group_by(lca) %>% 
+  filter(!lin %in% 's') %>% 
+  group_by(lin) %>% 
   mutate(n1 = sum(n)) %>% 
   filter(plasmid == TRUE)
 
-data_multi_v = data %>% 
-  group_by(lca,viral) %>% 
+data_multi_v = data_comb %>% 
+  group_by(lin,viral) %>% 
   summarise(n = n()) %>% 
-  group_by(lca) %>% 
+  group_by(lin) %>% 
   mutate(prop_v = proportions(n)) %>% 
-  filter(!lca %in% 's') %>% 
-  group_by(lca) %>% 
+  filter(!lin %in% 's') %>% 
+  group_by(lin) %>% 
   mutate(n1 = sum(n)) %>% 
   filter(viral == TRUE)
 
-data_multi_mov =  merge(data_multi_p,data_multi_v,by = "lca") %>% 
+data_multi_mov =  merge(data_multi_p,data_multi_v,by = "lin") %>% 
   gather(key = "origin",value = "prop",prop_v,prop_p)
 
-data_multi_p$lca = factor(data_multi_p$lca,levels = c('r',"d","p","c","o","f","g"))
+data_multi_p$lin = factor(data_multi_p$lin,levels = c('r',"d","p","c","o","f","g"))
 ggplot() +
-  geom_bar(data = data_multi_p,aes(x = lca, y = n1),stat = 'identity',fill = 'grey80')+
-  geom_line(data = data_multi_mov,aes(x = lca, y = prop*1000000,color = origin,group = origin),size = 2)+
+  geom_bar(data = data_multi_p,aes(x = lin, y = n1),stat = 'identity',fill = 'grey80')+
+  geom_line(data = data_multi_mov,aes(x = lin, y = prop*1000000,color = origin,group = origin),size = 2)+
   scale_y_continuous(sec.axis = sec_axis(~.*0.0000001, name = "Proportion in mobile"))+
   theme_classic()+
   theme(
-        text=element_text(size=20),
-        axis.title=element_text(size=20),
-        axis.text=element_text(size=20)) +
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20)) +
   scale_color_manual(labels = c("Plasmid","Viral") ,values = c("#CC6666", "#9999CC"),name= "Mobile")+
   ylab("Unknown protein families")+
   xlab("Lineage specificity")+
@@ -311,29 +276,23 @@ ggplot() +
                    labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
 
 
-
-
 #####
-# dnds synapomorphic vs non synapomorphic (Fig. 3C)
+# dnds synapomorphic vs non synapomorphic (Fig. 4B)
 #####
 
-# mobile stats for synapos / non synapos
-nrow(data[data$plasmid==T & data$synapo == T & data$synapo_lev %in% c('p','c','o'),]) / nrow(data[data$synapo == T & data$synapo_lev %in% c('p','c','o'),])
-nrow(data[data$plasmid==T,]) / nrow(data)
-
-syn_fams = read.table("synapo_fams.tab",sep = '\t')
-names(syn_fams) = c("lev","lev_name","fam")
+syn_fams = read.table("synapos.tab",sep = '\t')
+names(syn_fams) = c("fam","lev","lev_name")
 syn_fams = syn_fams %>% 
   mutate(syn = case_when(lev %in% c('p','c','o')~TRUE,
                          !lev %in% c('p','c','o')~FALSE)) %>% 
   filter(syn == T)
-
+head(dnds_data)
 data_c = dnds_data %>% 
   mutate(syn = case_when(fam %in% syn_fams$fam ~ TRUE,
                          !fam %in% syn_fams$fam ~ FALSE)) %>% 
-    filter( fam %in% filt_fams$V1 )
+  filter( fam %in% f_fams$V1 )
 
-ggplot(all_d,aes(x = syn,y = dnds)) +
+ggplot(data_c,aes(x = syn,y = dnds)) +
   geom_boxplot(aes(x = syn,y = dnds))+
   geom_signif(comparisons = list(c("TRUE","FALSE")), 
               map_signif_level=TRUE)+
@@ -344,20 +303,22 @@ ggplot(all_d,aes(x = syn,y = dnds)) +
         axis.text=element_text(size=20))+
   xlab("")+
   ylab("dN/dS")+
-  scale_x_discrete(labels=c("TRUE" = "Synapomorfic", "FALSE" = "Non-synapomorfic"))
+  scale_x_discrete(labels=c("TRUE" = "Synapomorfic", "FALSE" = "Non-synapomorfic"))+
+  coord_flip()
 
 #####
-# maximum conservation score synapomorphic vs non synapomorphic  (Fig. 3D)
+# maximum conservation score synapomorphic vs non synapomorphic  (Fig. 4C)
 #####
 
-data = read.table("max_score_prev_pos_per_fam.tab")
-data = data %>% 
+max_v_score = read.table("max_score_prev_pos_per_fam.tab")
+names(max_v_score) = c("fam","max_cons")
+max_v_score = max_v_score %>% 
   filter(fam %in% f_fams$V1) %>% 
-  mutate(syn = case_when(V1 %in% syn$V1 ~"synapomorphic",
-                         !V1 %in% syn$V1 ~ "non-synapomorphic"))
+  mutate(syn = case_when(fam %in% syn_fams$fam ~"synapomorphic",
+                         !fam %in% syn_fams$fam ~ "non-synapomorphic"))
 
-ggplot(data,aes(x = syn, y = max_cons))+
-  geom_boxplot(aes(x = syn, y = V2))+
+ggplot(max_v_score,aes(x = syn, y = max_cons))+
+  geom_boxplot()+
   geom_signif(
     comparisons = list(c("synapomorphic","non-synapomorphic")),
     map_signif_level = TRUE)+
@@ -375,13 +336,13 @@ ggplot(data,aes(x = syn, y = max_cons))+
 # CRC DA gene families (Fig 5A)
 ####
 
+# load abs
+
 kos = read.csv("kos_DE.abs.tab",header = T)
 nfams = read.csv("nfams_DE.abs.txt", header = T)
-samples = read.table("metadata.tsv",header = T)
-samples = samples[,c(1,6,11)] #  CRC - CTR
+samples = read.table("metadata.tsv.f",header = T)
+samples = samples[,c(1,6,11)] 
 
-
-# load abs
 kos = kos %>% 
   gather(key = "Sample_ID", value = "abs", 2:ncol(kos))
 nfams = nfams %>% 
@@ -426,11 +387,11 @@ ctr_data = data %>%
   dplyr::select(!c(Sample_ID,abs)) %>% 
   unique()
 
-# join for calculating difference of abs 
+# join for calculating relative abundance difference 
 d_plot = merge(crc_data,ctr_data,by = "join")
 d_plot$diff_crc_ctr = d_plot$mean_abs_per_cluster_per_group_per_pop.x - d_plot$mean_abs_per_cluster_per_group_per_pop.y
 
-# calculate mean diff of abs per pop for ordering plot
+# calculate mean relative abundance difference for ordering plot
 d_plot = d_plot %>% 
   group_by(cluster.x) %>% 
   mutate(mean_diff = mean(diff_crc_ctr))
@@ -468,7 +429,7 @@ p1 = ggplot(d_plot,aes(y = cluster, x =  diff_crc_ctr))+
   scale_fill_brewer(palette="Dark2")+
   scale_color_brewer(palette="Dark2")
 
-  
+
 # p-values
 d_prev = d_plot %>% 
   dplyr::select(cluster,pval.x,direction.x) %>% 
@@ -487,7 +448,7 @@ p2 = ggplot(d_prev)+
   scale_fill_brewer(palette="Dark2")+
   scale_y_continuous(limits=c(0, 0.01),breaks = c(0,0.01))+
   theme(legend.position = "none")
-    
+
 
 # prevalence
 d_prev = d_plot %>% 
@@ -520,8 +481,8 @@ data$origin = factor(data$origin,levels = c("KOs","nfams","KOs + nfams"))
 
 data = data %>% 
   mutate(origin_ = case_when(origin == "nfams"~"FESNov\n fams",
-                            origin == "KOs + nfams"~"KOs + \nFESNov fams",
-                            origin == "KOs"~"KOs"))
+                             origin == "KOs + nfams"~"KOs + \nFESNov fams",
+                             origin == "KOs"~"KOs"))
 
 data$origin_ = factor(data$origin_,levels = c("KOs", "FESNov\n fams","KOs + \nFESNov fams"))
 p1 = ggplot(data,aes(x = origin_,y = auc))+
@@ -532,13 +493,158 @@ p1 = ggplot(data,aes(x = origin_,y = auc))+
     map_signif_level = TRUE
   ) +
   theme(text=element_text(size=25),
-           axis.title=element_text(size=25),
+        axis.title=element_text(size=25),
   )+
   ylab ("AUC")+
   xlab("Dataset")
 
 
+p1
+#####
+# Extended Data Image S5
+######
 
+data_multi = data_comb %>% 
+  group_by(mobile_vir,num_biomes) %>% 
+  summarise(n = n()) %>% 
+  group_by(num_biomes) %>% 
+  mutate(prop = proportions(n)) %>% # calculate proportions num_biomes  
+  filter(! is.na(num_biomes)) %>% 
+  #  filter(num_biomes < 80) %>% 
+  filter(mobile_vir == TRUE)
+
+ggplot(data_multi) +
+  geom_point(aes(x = num_biomes, y = prop,color = mobile_vir))+
+  ylim(c(0,1))+
+  ylim(c(0,0.4))+
+  theme_classic()+
+  annotate("text", x = 20, y = 0.3, label = paste("R = ",as.character(round(cor(data_multi$num_biomes,data_multi$prop,method = "spearman"),2))),size = 10)+
+  theme(
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20),
+    legend.position = "none")+
+  xlab("Number of habitats")+
+  ylab("Proportion of unknown protein families in\n plasmid / viral contigs")
+
+######
+# Extended Data Image S7
+######
+
+# FESNov families, per habitat
+
+meta = read.table("GMGC10.sample.meta.tsv",sep = '\t',header = T)
+res = read.table("nfams_tsne_hab.tab",sep = '\t',header = T)
+dp = merge(res,meta,by.y ='sample_id',by.x = "samples")
+col_c = c("olivedrab4","hotpink3","gold1","mediumpurple3","deepskyblue","antiquewhite4",
+          "blue", "hotpink1","deeppink3","orange4","chartreuse4","snow3", "goldenrod")
+
+p1 = ggplot(dp)+
+  geom_point(aes(x = v1,y = v2,col = habitat),size = 2)+
+  theme_classic()+
+  xlab("tSNE 1")+
+  ylab("tSNE 2")+
+  theme(
+    text=element_text(size=15),
+    axis.title=element_text(size=15),
+    axis.text=element_text(size=15))+
+  scale_color_manual(values = col_c)  
+
+p1
+
+# kos, per habitat
+res = read.table("kos_tsne_hab.tab")
+dp = merge(res,meta,by.y ='sample_id',by.x = "samples")
+
+p2 = ggplot(dp)+
+  geom_point(aes(x = v1,y = v2,col = habitat),size = 2)+
+  theme_classic()+
+  xlab("tSNE 1")+
+  ylab("tSNE 2")+
+  theme(
+    text=element_text(size=15),
+    axis.title=element_text(size=15),
+    axis.text=element_text(size=15))+
+  scale_color_manual(values = col_c)
+
+p1 + p2 + plot_layout(guides = "collect")
+
+# FESNov families, human gut per country
+res = read.table("nfams_tsne_pop.tab",sep = '\t',header = T)
+
+
+d1 = merge(res,meta,by.y ='sample_id',by.x = "samples")
+d1 = d1 %>% 
+  filter(country %in% c("Austria","Denmark","Estonia","Finland","Spain","Sweden",
+                        "Turkey","United Kingdom of Great Britain and Northern Ireland",
+                        "Israel","Russian Federation","China","Egypt","Ghana","El Salvador","Peru",
+                        "Fiji","United States of America"))
+
+cols_c = c("darkorange3","cornsilk4","blue3","plum3","lawngreen","gold1","azure4","mediumpurple","lightblue1","cadetblue1","orchid4","cornflowerblue","seashell2","yellowgreen","lightskyblue4","pink3","olivedrab","seashell4","ivory","paleturquoise1","lightskyblue3","cyan1","pink1","lightpink","mistyrose1","orangered4","palevioletred1","goldenrod3","thistle","dodgerblue","mintcream","darksalmon","honeydew1","tan1","maroon1","springgreen2","mediumorchid2","goldenrod1","white","darkolivegreen2","mediumslateblue","thistle1","mediumpurple4","peachpuff3","thistle4","turquoise","moccasin","orangered1","rosybrown")
+p1 = ggplot(d1)+
+  geom_point(aes(x = v1,y = v2,col = country),size = 1)+
+  theme_classic()+
+  xlab("tSNE 1")+
+  ylab("tSNE 2")+
+  theme(
+    text=element_text(size=15),
+    axis.title=element_text(size=15),
+    axis.text=element_text(size=15))+
+  scale_color_manual(values = cols_c)
+
+
+# kos
+res = read.table("kos_tsne_pop.tab",sep = '\t',header = T)
+
+d1 = merge(res,meta,by.y ='sample_id',by.x = "samples")
+
+d1 = d1 %>% 
+  filter(country %in% c("Austria","Denmark","Estonia","Finland","Spain","Sweden",
+                        "Turkey","United Kingdom of Great Britain and Northern Ireland",
+                        "Israel","Russian Federation","China","Egypt","Ghana","El Salvador","Peru",
+                        "Fiji","United States of America"))
+
+
+p2 = ggplot(d1)+
+  geom_point(aes(x = v1,y = v2,col = country),size = 1)+
+  theme_classic()+
+  xlab("tSNE 1")+
+  ylab("tSNE 2")+
+  theme(
+    text=element_text(size=15),
+    axis.title=element_text(size=15),
+    axis.text=element_text(size=15))+
+  scale_color_manual(values = cols_c)
+
+p1 + p2 + plot_layout(guides = "collect")
+
+######
+# Extended Data Image S8
+######
+
+d = read.table("random_forest.70Train_30Test.tab",header = T,sep = ",")
+
+d$origin = factor(d$origin,levels = c("KOs","nfams","KOs + nfams"))
+d = d %>% 
+  mutate(origin_ = case_when(origin == "nfams"~"FESNov\n  fams",
+                             origin == "KOs + nfams"~"KOs + FESNov\n  fams",
+                             origin == "KOs"~"KOs"))
+
+d$origin_ = factor(d$origin_,levels = c("KOs", "FESNov\n  fams","KOs + FESNov\n  fams"))
+
+ggplot(d,aes(x = origin_,y = auc))+
+  geom_boxplot()+
+  theme_classic()+
+  theme(text=element_text(size=15),
+        axis.title=element_text(size=15),
+  )+
+  ylab ("AUC")+
+  xlab("Dataset")+
+  scale_fill_brewer(palette="Spectral")+
+  geom_signif(
+    comparisons = list(c("KOs", "FESNov\n  fams")),
+    map_signif_level = TRUE
+  ) 
 
 
 
