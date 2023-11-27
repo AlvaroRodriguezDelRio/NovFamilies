@@ -222,10 +222,6 @@ ggplot(data_syn,aes(x = syn, y = max_cons))+
 
 # load abs
 d_plot = read.table("Figure 5A source data.tab",header = T)
-names(d_plot)
-d_plot = d_plot %>% arrange(as.numeric(mean_diff))
-head(d_plot)
-
 
 # plot
 p1 = ggplot(d_plot %>% 
