@@ -3,16 +3,14 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-setwd("~/../Downloads/nov_fams_data")
-
 #####
 # load data
 #####
 
-# filtered fams
+# Load FESNov families collection
 f_fams = read.table("ffams.txt")
 
-# dnds for each fam
+# dN/dS  
 dnds_data = read.table("dnds.tab")
 names(dnds_data) = c("fam","dnds")
 dnds_data = dnds_data %>% 
@@ -20,45 +18,48 @@ dnds_data = dnds_data %>%
 dnds_data$dnds = as.numeric(dnds_data$dnds)
 
 
-# plasflow predictions per fam
+# plasflow predictions
 plasflow = read.table("plasflow.tab")
 head(plasflow)
 plasflow = plasflow %>% 
   mutate(plasmid = case_when(V4 > 0 ~ TRUE,
                              V4 == 0  ~ FALSE)) %>%
+
   # Extended Data Figure S6a 
-  #mutate(plasmid = case_when(V4/V2 >= 0.3 ~ TRUE,
+  # mutate(plasmid = case_when(V4/V2 >= 0.3 ~ TRUE,
   #                          V4/V2 < 0.3  ~ FALSE)) %>%
   
   select(V1, plasmid)
 
-# seeker predictions per fam 
+# seeker predictions
 seeker = read.table("seeker.tab")
 seeker = seeker %>% 
   mutate(viral = case_when(V4 >0 ~ TRUE,
                            V4==0 ~ FALSE)) %>% 
+
+  # Extended Data Figure S6a 
+  #mutate(viral = case_when(V4/V2 >=0.3 ~ TRUE,
+  #                         V4/V2 < 0.3 ~ FALSE)) %>% 
   select(V1, viral)
 
-# lcas per fam 
+# Phylogenetic breath per gene family 
 lcas = read.table("lca_per_fam.rank.tab")
 
-# Extended Data Figure S6a 
+# Extended Data Figure S6b
 # lcas = read.table("lca_per_fam.min_80_perc.tab",sep="\t")
 
 names(lcas) = c("V1","lin")
 
 # number habitats per fam  
-num_biomes = read.table("number_biomes_per_fam.eval_1e-3_cov50.tab") #
+num_biomes = read.table("number_biomes_per_fam.eval_1e-3_cov50.tab") 
 names(num_biomes) = c("V1","num_biomes")
-head(num_biomes)
-nrow(num_biomes)
 
 # number of detections in per fam
 number_samples = read.table("number_samples_per_fam.eval_1e-3_cov_50.tab")
 names(number_samples) = c("V1","num_samples")
 
 
-# alistat stats for joining with other data
+# Sequence alignment statistics
 data_alistat  = read.table("alistat_stats.tab",header = T)
 data_alistat = data_alistat %>% 
   filter(V1 %in% f_fams$V1)
@@ -286,7 +287,7 @@ syn_fams = syn_fams %>%
   mutate(syn = case_when(lev %in% c('p','c','o')~TRUE,
                          !lev %in% c('p','c','o')~FALSE)) %>% 
   filter(syn == T)
-head(dnds_data)
+
 data_c = dnds_data %>% 
   mutate(syn = case_when(fam %in% syn_fams$fam ~ TRUE,
                          !fam %in% syn_fams$fam ~ FALSE)) %>% 
@@ -501,7 +502,7 @@ p1 = ggplot(data,aes(x = origin_,y = auc))+
 
 p1
 #####
-# Extended Data Image S5
+# Extended Data Figure S5
 ######
 
 data_multi = data_comb %>% 
@@ -528,7 +529,7 @@ ggplot(data_multi) +
   ylab("Proportion of unknown protein families in\n plasmid / viral contigs")
 
 ######
-# Extended Data Image S7
+# Extended Data Figure S7
 ######
 
 # FESNov families, per habitat
@@ -604,7 +605,6 @@ d1 = d1 %>%
                         "Israel","Russian Federation","China","Egypt","Ghana","El Salvador","Peru",
                         "Fiji","United States of America"))
 
-
 p2 = ggplot(d1)+
   geom_point(aes(x = v1,y = v2,col = country),size = 1)+
   theme_classic()+
@@ -619,7 +619,7 @@ p2 = ggplot(d1)+
 p1 + p2 + plot_layout(guides = "collect")
 
 ######
-# Extended Data Image S8
+# Extended Data Figure S8
 ######
 
 d = read.table("random_forest.70Train_30Test.tab",header = T,sep = ",")
