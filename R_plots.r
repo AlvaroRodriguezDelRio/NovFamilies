@@ -6,15 +6,16 @@ library(ggsignif)
 library(patchwork)
 
 
-data_comb = read.table("Figure 1BC 3BC Extended Data Figure S5 S6 source data.tab",header = T)
-head(data_comb)
+setwd("~/../Downloads/nov_fams_data/combined")
 
 
 ######
 # dnds distribution (fig. 1B)
 ######
 
-ggplot(data_comb)+
+
+data = read.table("1B.tab",sep = '\t',header = T)
+ggplot(data)+
   geom_histogram(aes(x = dnds),bins = 20,alpha = 0.2,color = "#56B4E9",fill = "#56B4E9")+
   xlab("dN / dS")+
   ylab("FESNov protein families")+
@@ -29,7 +30,9 @@ ggplot(data_comb)+
 # average identity plot (fig. 1C)
 #########
 
-ggplot(data_comb)+
+data = read.table("1C.tab",sep = '\t',header = T)
+head(data)
+ggplot(data)+
   geom_histogram(aes(x = av_id),alpha = 0.2,bins =  20,color = "#56B4E9",fill = "#56B4E9")+
   xlab("Average aminoacid identity")+
   ylab("FESNov protein families")+
@@ -45,11 +48,12 @@ ggplot(data_comb)+
 # size distribution novel fams vs eggnog and small peptides (fig. 1D)
 #####
 
-data_lens = read.table("Figure 1D source data.tab",header = T)
+data = read.table("1D.tab",header = T)
 
 # plot lengh distribution
-ggplot(data_lens[order(data_lens$variable, decreasing = F),])+
-  geom_histogram(aes(color = variable,fill = variable,x = value),alpha = 0.3,position = "identity")+
+ggplot(data)+
+#  coord_cartesian(xlim=c(0,1000)) +
+  geom_histogram(aes(color = dataset,fill = dataset,x = gene_len),alpha = 0.3,position = "identity")+
   xlim(c(0,1000))+
   labs(fill="",color = "")+
   ylab(label = "Protein families")+
@@ -67,11 +71,11 @@ ggplot(data_lens[order(data_lens$variable, decreasing = F),])+
 # Number of species of FESNov fams vs eggnog (fig. 1E)
 #####
 
-data_nsp = read.table("Figure 1E source data.tab",header = T)
+data = read.table("1E.tab",header = T)
 
-
-ggplot(data_nsp[order(data_nsp$variable, decreasing = F),])+
-  geom_histogram(aes(color = variable,fill = variable,x = value),alpha = 0.3,position = "identity",bins = 50)+
+ggplot(data)+
+  #coord_cartesian(xlim=c(0,50)) +
+  geom_histogram(aes(color = dataset,fill = dataset,x = n_species),alpha = 0.3,position = "identity",bins = 50)+
   xlim(c(0,50))+
   labs(fill="",color = "")+
   ylab(label = "")+
@@ -84,38 +88,21 @@ ggplot(data_nsp[order(data_nsp$variable, decreasing = F),])+
   scale_color_manual(values=c("#E69F00","#56B4E9"),labels = c("Eggnog","Novel"))+
   scale_fill_manual(values=c("#E69F00","#56B4E9"),labels = c("Eggnog","Novel"))
 
+
 ####
 # habitat distribution (fig. 3B)
 #####
 
-data_multi_p = data_comb %>% 
-  group_by(plasmid,num_biomes) %>% 
-  summarise(n = n()) %>% 
-  group_by(num_biomes) %>% 
-  mutate(prop_p = proportions(n)) %>% # calculate proportions num_biomes  
-  filter(! is.na(num_biomes)) %>% 
-  filter(plasmid == TRUE) %>% 
-  filter(num_biomes<80)
-
-
-data_multi_v = data_comb %>% 
-  group_by(viral,num_biomes) %>% 
-  summarise(n = n()) %>% 
-  group_by(num_biomes) %>% 
-  mutate(prop_v = proportions(n)) %>% # calculate proportions num_biomes  
-  filter(! is.na(num_biomes)) %>% 
-  filter(viral == TRUE) %>% 
-  filter(num_biomes<80)
-
-data_multi_mov =  merge(data_multi_p,data_multi_v,by = "num_biomes") %>% 
-  gather(key = "origin",value = "prop",prop_v,prop_p)
-
+data_habs = read.table("3B_histogram.tab",header = T,sep = '\t')
+head(data_habs)
+data_mot = read.table("3B_mot.tab",header = T,sep = '\t')
+head(data_mot)
 
 ggplot()+
-  geom_histogram(data = data_comb,aes(x = num_biomes,fill = rare),alpha = 0.6,position = "identity",bins = 70)+
+  geom_histogram(data = data_habs,aes(x = num_biomes,fill = rare),alpha = 0.6,position = "identity",bins = 70)+
   xlim(c(1,70))+
   scale_fill_manual(values = c("#d8b365", "#5ab4ac","grey"),name= "Rareness",labels = c("1-10 samples", "11-50 samples", "> 50 samples"))+
-  geom_line(data = data_multi_mov,aes(x = num_biomes, y = prop*100000,color = origin),size = 1)+
+  geom_line(data = data_mot,aes(x = num_biomes, y = prop*100000,color = origin),size = 1)+
   scale_y_continuous(sec.axis = sec_axis(~.*1/100000, name = "Proportion in mobile"))+
   xlab("Habitats")+
   ylab("Unknown protein families")+
@@ -131,35 +118,15 @@ ggplot()+
 # lineage specificity & motility (fig. 3C), also for Extended Data Figure S6
 ####
 
+data_lca = read.table("3C_histogram.tab",header = T,sep = '\t')
+head(data_lca)
+data_mot = read.table("3C_mot.tab",header = T,sep = '\t')
+head(data_mot)
 
-# plot
-data_multi_p = data_comb %>% 
-  group_by(lin,plasmid) %>% 
-  summarise(n = n()) %>% 
-  group_by(lin) %>% 
-  mutate(prop_p = proportions(n)) %>% 
-  filter(!lin %in% 's') %>% 
-  group_by(lin) %>% 
-  mutate(n1 = sum(n)) %>% 
-  filter(plasmid == TRUE)
-
-data_multi_v = data_comb %>% 
-  group_by(lin,viral) %>% 
-  summarise(n = n()) %>% 
-  group_by(lin) %>% 
-  mutate(prop_v = proportions(n)) %>% 
-  filter(!lin %in% 's') %>% 
-  group_by(lin) %>% 
-  mutate(n1 = sum(n)) %>% 
-  filter(viral == TRUE)
-
-data_multi_mov =  merge(data_multi_p,data_multi_v,by = "lin") %>% 
-  gather(key = "origin",value = "prop",prop_v,prop_p)
-
-data_multi_p$lin = factor(data_multi_p$lin,levels = c('r',"d","p","c","o","f","g"))
+data_lca$lin_sp = factor(data_lca$lin_sp,levels = c('r',"d","p","c","o","f","g"))
 ggplot() +
-  geom_bar(data = data_multi_p,aes(x = lin, y = n1),stat = 'identity',fill = 'grey80')+
-  geom_line(data = data_multi_mov,aes(x = lin, y = prop*1000000,color = origin,group = origin),size = 2)+
+  geom_bar(data = data_lca,aes(x = lin_sp, y = n),stat = 'identity',fill = 'grey80')+
+  geom_line(data = data_mot,aes(x = lin_sp, y = prop*1000000,color = origin,group = origin),size = 2)+
   scale_y_continuous(sec.axis = sec_axis(~.*0.0000001, name = "Proportion in mobile"))+
   theme_classic()+
   theme(
@@ -173,14 +140,15 @@ ggplot() +
                    labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
 
 
+
 #####
 # dnds synapomorphic vs non synapomorphic (Fig. 4B)
 #####
 
-data_syn = read.table("Figure 4BC Source Data.tab",header = T)
-head(data_syn)
+data = read.table("4B.tab",header = T)
+head(data)
 
-ggplot(data_syn,aes(x = syn,y = dnds)) +
+ggplot(data,aes(x = syn,y = dnds)) +
   geom_boxplot(aes(x = syn,y = dnds))+
   geom_signif(comparisons = list(c("TRUE","FALSE")), 
               map_signif_level=TRUE)+
@@ -194,13 +162,15 @@ ggplot(data_syn,aes(x = syn,y = dnds)) +
   scale_x_discrete(labels=c("TRUE" = "Synapomorfic", "FALSE" = "Non-synapomorfic"))+
   coord_flip()
 
+
 #####
 # maximum conservation score synapomorphic vs non synapomorphic  (Fig. 4C)
 #####
 
+data = read.table("4C.tab",header = T)
+head(data)
 
-
-ggplot(data_syn,aes(x = syn, y = max_cons))+
+ggplot(data,aes(x = syn, y = max_cons))+
   geom_boxplot()+
   geom_signif(
     comparisons = list(c("TRUE","FALSE")),
@@ -221,10 +191,13 @@ ggplot(data_syn,aes(x = syn, y = max_cons))+
 ####
 
 # load abs
-d_plot = read.table("Figure 5A source data.tab",header = T)
+d_plot = read.table("5.tab",header = T)
+head(d_plot)
+
 
 # plot
-p1 = ggplot(d_plot,aes(y = reorder(cluster,-mean_diff), x =  diff_crc_ctr))+
+p1 = ggplot(d_plot %>% 
+              arrange(mean_diff),aes(y = reorder(cluster,-mean_diff), x =  diff_crc_ctr))+
   geom_point(aes(shape = Study, color = direction))+
   stat_summary(
     geom = "point",
@@ -289,26 +262,17 @@ p3 = ggplot(d_prev)+
 
 p1 + p2 + p3 +  plot_layout(guides = 'collect')+ plot_layout(widths = c(5,1,1))
 
-
 #####
 # Extended Data Figure S5
 ######
 
-data_multi = data_comb %>% 
-  group_by(mobile_vir,num_biomes) %>% 
-  summarise(n = n()) %>% 
-  group_by(num_biomes) %>% 
-  mutate(prop = proportions(n)) %>% # calculate proportions num_biomes  
-  filter(! is.na(num_biomes)) %>% 
-  #  filter(num_biomes < 80) %>% 
-  filter(mobile_vir == TRUE)
+d_plot = read.table("S5.tab",header = T)
 
-ggplot(data_multi) +
-  geom_point(aes(x = num_biomes, y = prop,color = mobile_vir))+
-  ylim(c(0,1))+
+ggplot(d_plot) +
+  geom_point(aes(x = num_habs, y = prop_mob,color = "red"))+
   ylim(c(0,0.4))+
   theme_classic()+
-  annotate("text", x = 20, y = 0.3, label = paste("R = ",as.character(round(cor(data_multi$num_biomes,data_multi$prop,method = "spearman"),2))),size = 10)+
+  annotate("text", x = 20, y = 0.3, label = paste("R = ",as.character(round(cor(d_plot$num_habs,d_plot$prop_mob,method = "spearman"),2))),size = 10)+
   theme(
     text=element_text(size=20),
     axis.title=element_text(size=20),
@@ -317,21 +281,85 @@ ggplot(data_multi) +
   xlab("Number of habitats")+
   ylab("Proportion of unknown protein families in\n plasmid / viral contigs")
 
+
+######
+# Extended Figure S6
+######
+
+# S6a
+
+data_lca = read.table("S6A_histogram.tab",header = T,sep = '\t')
+head(data_lca)
+data_mot = read.table("S6A_mot.tab",header = T,sep = '\t')
+head(data_mot)
+
+data_lca$lin_sp= factor(data_lca$lin_sp,levels = c('r',"d","p","c","o","f","g"))
+ggplot() +
+  geom_bar(data = data_lca,aes(x = lin_sp, y = n),stat = 'identity',fill = 'grey80')+
+  geom_line(data = data_mot,aes(x = lin_sp, y = prop*1000000,color = origin,group = origin),size = 2)+
+  scale_y_continuous(sec.axis = sec_axis(~.*0.0000001, name = "Proportion in mobile"))+
+  theme_classic()+
+  theme(
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20)) +
+  scale_color_manual(labels = c("Plasmid","Viral") ,values = c("#CC6666", "#9999CC"),name= "Mobile")+
+  ylab("Unknown protein families")+
+  xlab("Lineage specificity")+
+  scale_x_discrete(name ="Lineage specificity", 
+                   labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
+
+
+# S6b
+data_lca = read.table("S6B_histogram.tab",header = T,sep = '\t')
+head(data_lca)
+data_mot = read.table("S6B_mot.tab",header = T,sep = '\t')
+head(data_mot)
+
+data_lca$lin_sp= factor(data_lca$lin_sp,levels = c('r',"d","p","c","o","f","g"))
+ggplot() +
+  geom_bar(data = data_lca,aes(x = lin_sp, y = n),stat = 'identity',fill = 'grey80')+
+  geom_line(data = data_mot,aes(x = lin_sp, y = prop*1000000,color = origin,group = origin),size = 2)+
+  scale_y_continuous(sec.axis = sec_axis(~.*0.0000001, name = "Proportion in mobile"))+
+  theme_classic()+
+  theme(
+    text=element_text(size=20),
+    axis.title=element_text(size=20),
+    axis.text=element_text(size=20)) +
+  scale_color_manual(labels = c("Plasmid","Viral") ,values = c("#CC6666", "#9999CC"),name= "Mobile")+
+  ylab("Unknown protein families")+
+  xlab("Lineage specificity")+
+  scale_x_discrete(name ="Lineage specificity", 
+                   labels=c("Multi\ndomain","Multi\nphyla","Multi\nclass","Multi\norder","Multi\nfamily","Multi\ngenus","Multi\nspecies"))
+
+
+
 ######
 # Extended Data Figure S7
 ######
 
-meta = read.table("GMGC10.sample.meta.tsv",sep = '\t',header = T)
-
-
-# FESNov families, human gut per country
-tsne = read.table("Extended Data Figure S7A source data.tab",sep = '\t',header = T)
-
-d1 = merge(tsne,meta,by.y ='sample_id',by.x = "samples")
+# S7a
+tsne = read.table("S7A.tab",sep = '\t',header = T)
+head(tsne)
 
 cols_c = c("darkorange3","cornsilk4","blue3","plum3","lawngreen","gold1","azure4","mediumpurple","lightblue1","cadetblue1","orchid4","cornflowerblue","seashell2","yellowgreen","lightskyblue4","pink3","olivedrab","seashell4","ivory","paleturquoise1","lightskyblue3","cyan1","pink1","lightpink","mistyrose1","orangered4","palevioletred1","goldenrod3","thistle","dodgerblue","mintcream","darksalmon","honeydew1","tan1","maroon1","springgreen2","mediumorchid2","goldenrod1","white","darkolivegreen2","mediumslateblue","thistle1","mediumpurple4","peachpuff3","thistle4","turquoise","moccasin","orangered1","rosybrown")
-p1 = ggplot(d1)+
-  geom_point(aes(x = v1,y = v2,col = country),size = 1)+
+p1 = ggplot(tsne)+
+  geom_point(aes(x = tsne1,y = tsne2,col = country),size = 1)+
+  theme_classic()+
+  xlab("tSNE 1")+
+  ylab("tSNE 2")+
+  theme(
+    text=element_text(size=15),
+    axis.title=element_text(size=15),
+    axis.text=element_text(size=15))+
+  scale_color_manual(values = cols_c)
+
+# S7b
+tsne = read.table("S7B.tab",sep = '\t',header = T)
+head(tsne)
+
+p2 = ggplot(tsne)+
+  geom_point(aes(x = tsne1,y = tsne2,col = country),size = 1)+
   theme_classic()+
   xlab("tSNE 1")+
   ylab("tSNE 2")+
@@ -342,32 +370,14 @@ p1 = ggplot(d1)+
   scale_color_manual(values = cols_c)
 
 
-# kos
-tsne = read.table("Extended Data Figure S7B source data.tab",sep = '\t',header = T)
-
-d1 = merge(tsne,meta,by.y ='sample_id',by.x = "samples")
-
-p2 = ggplot(d1)+
-  geom_point(aes(x = v1,y = v2,col = country),size = 1)+
-  theme_classic()+
-  xlab("tSNE 1")+
-  ylab("tSNE 2")+
-  theme(
-    text=element_text(size=15),
-    axis.title=element_text(size=15),
-    axis.text=element_text(size=15))+
-  scale_color_manual(values = cols_c)
-
-p1 + p2 + plot_layout(guides = "collect")
-
-# FESNov families, per habitat
-tsne = read.table("Extended Data Figure S7C source data.tab",sep = '\t',header = T)
-dp = merge(tsne,meta,by.y ='sample_id',by.x = "samples")
+# FS7c
+tsne = read.table("S7C.tab",sep = '\t',header = T)
+head(tsne)
 col_c = c("olivedrab4","hotpink3","gold1","mediumpurple3","deepskyblue","antiquewhite4",
           "blue", "hotpink1","deeppink3","orange4","chartreuse4","snow3", "goldenrod")
 
-p3 = ggplot(dp)+
-  geom_point(aes(x = v1,y = v2,col = habitat),size = 2)+
+p3 = ggplot(tsne)+
+  geom_point(aes(x = tsne1,y = tsne2,col = habitat),size = 2)+
   theme_classic()+
   xlab("tSNE 1")+
   ylab("tSNE 2")+
@@ -377,12 +387,12 @@ p3 = ggplot(dp)+
     axis.text=element_text(size=15))+
   scale_color_manual(values = col_c)  
 
-# kos, per habitat
-tsne = read.table("Extended Data Figure S7D source data.tab")
-dp = merge(tsne,meta,by.y ='sample_id',by.x = "samples")
 
-p4 = ggplot(dp)+
-  geom_point(aes(x = v1,y = v2,col = habitat),size = 2)+
+# S7D
+tsne = read.table("S7D.tab",sep = '\t',header = T)
+
+p4 = ggplot(tsne)+
+  geom_point(aes(x = tsne1,y = tsne2,col = habitat),size = 2)+
   theme_classic()+
   xlab("tSNE 1")+
   ylab("tSNE 2")+
@@ -396,20 +406,17 @@ p4 = ggplot(dp)+
 
 
 ######
-# Extended Data Figure S8
+# Extended Data Figure S9
 ######
 
 
-data = read.table("Extended Data S8A source data.tab",header = T,sep = ",")
-data$origin = factor(data$origin,levels = c("KOs","nfams","KOs + nfams"))
+# S9A
 
-data = data %>% 
-  mutate(origin_ = case_when(origin == "nfams"~"FESNov\n fams",
-                             origin == "KOs + nfams"~"KOs + \nFESNov fams",
-                             origin == "KOs"~"KOs"))
+data = read.table("S9A.tab",header = T,sep = "\t")
 
-data$origin_ = factor(data$origin_,levels = c("KOs", "FESNov\n fams","KOs + \nFESNov fams"))
-p1 = ggplot(data,aes(x = origin_,y = auc))+
+
+data$dataset = factor(data$dataset,levels = c("KOs", "FESNov\n fams","KOs + \nFESNov fams"))
+p1 = ggplot(data,aes(x = dataset,y = auc))+
   geom_boxplot()+
   theme_classic()+
   geom_signif(
@@ -423,17 +430,13 @@ p1 = ggplot(data,aes(x = origin_,y = auc))+
   xlab("Dataset")
 
 
-d = read.table("Extended Data S8B source data.tab",header = T,sep = ",")
+# S9B
 
-d$origin = factor(d$origin,levels = c("KOs","nfams","KOs + nfams"))
-d = d %>% 
-  mutate(origin_ = case_when(origin == "nfams"~"FESNov\n  fams",
-                             origin == "KOs + nfams"~"KOs + FESNov\n  fams",
-                             origin == "KOs"~"KOs"))
+d = read.table("S9B.tab",header = T,sep = "\t")
+head(data)
 
-d$origin_ = factor(d$origin_,levels = c("KOs", "FESNov\n  fams","KOs + FESNov\n  fams"))
-
-p2 = ggplot(d,aes(x = origin_,y = auc))+
+d$dataset = factor(d$dataset,levels = c("KOs", "FESNov\n  fams","KOs + FESNov\n  fams"))
+p2 = ggplot(d,aes(x = dataset,y = auc))+
   geom_boxplot()+
   theme_classic()+
   theme(text=element_text(size=15),
@@ -447,4 +450,5 @@ p2 = ggplot(d,aes(x = origin_,y = auc))+
     map_signif_level = TRUE
   ) 
 
+?wilcox.test
 p1 + p2
