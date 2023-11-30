@@ -1,7 +1,7 @@
 # NovFamilies
 Scripts for generating the figures in `Functional and evolutionary significance of unknown genes from uncultivated taxa`.  A detailed pipeline for the steps followed for creating the FESNov gene family catalog are provided at https://github.com/AlvaroRodriguezDelRio/nov-fams-pipeline 
 
-![Pipeline for dealineating novel gene families exclusive of uncultivated taxa](Fig 3.png)
+![Figure code](Fig 3.PNG)
 
 ## Scripts
 
