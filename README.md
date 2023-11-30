@@ -7,7 +7,4 @@ Scripts for generating the figures in `Functional and evolutionary significance 
 - ``figure2_A_matrix.py``: Script generating the KO presence / absence matrix in figure 2A.
 - ``statistical_analysis_and_figures.r``: Script including the code for generating the remaining figures and some statistical tests. 
 
-### CRC analysis
 
-- ``CRC_DA_analysis.r``: Differential abundance test
-- ``CRC_prediction.r``: Logaritmic regression and machine learning algorithms for CRC prediction
