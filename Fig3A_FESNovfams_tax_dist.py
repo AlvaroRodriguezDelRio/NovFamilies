@@ -58,7 +58,7 @@ def load_annots(filt_fams):
 
 
     genome2fam = defaultdict(lambda:set())
-    for line in open("NoISO-fixed.3sp.taxonomy_by_member.tsv"):
+    for line in open("taxonomy_by_member.tsv"):
         line = line.rstrip()
         fam = line.split('\t')[0]
         member = line.split('\t')[5]
