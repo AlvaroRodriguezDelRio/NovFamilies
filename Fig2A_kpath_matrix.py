@@ -251,7 +251,7 @@ colors_bk = random_color(num=22, s=0.2, l=0.9)
 
 # load taxonomies per family
 fam2tax = defaultdict(lambda:set())
-for line in open("/data/jhc/cold/MAGs/novel_fams-v2/NoISO-fixed.3sp.taxonomy_by_member.tsv"):
+for line in open("taxonomy_by_member.tsv"):
     line = line.rstrip()
     fam = line.split('\t')[0]
     tax = line.split('\t')[-1]
@@ -267,7 +267,7 @@ for line in open("ffams.txt"):
     filtered_families.add(line)
 
 code2fam = {}
-for line in open('microbial_genomes-v1.clustering.folded.parsed.NoISO.3sp.fam2codes.tsv'):
+for line in open('fam2codes.tsv'):
     fam,code = list(map(str.strip,line.split('\t')))
     code2fam[code] = fam
 
@@ -276,7 +276,7 @@ taxa2kos = defaultdict(lambda:Counter())
 kos_present = set()
 kos_counter = Counter()
 taxa_with_kos = set()
-for line in open('kpath_benchmark_per_nfam.min_n_benchmark.params.sel_codes.tab'):
+for line in open('kpath_confidence_per_nfam.tab'):
     fam_code,annot,acc,param,desc =  list(map(str.strip,line.split('\t')))
     if float(acc) >= 0.9:
         fam = code2fam[fam_code]
@@ -293,7 +293,7 @@ route_set = set()
 route_especific_ko_order = defaultdict(lambda:{})
 pos = 0
 ko2enzyme_name = {}
-for line in open('/scratch/alvaro/data/KEGG_maps_selected.tab'):
+for line in open('KEGG_maps_selected.tab'):
     route, ko, tr = list(map(str.strip,line.split('\t')))
     ko = ko.replace('map','')
     if ko in kos_present: # if any prediction in neigh
@@ -301,7 +301,6 @@ for line in open('/scratch/alvaro/data/KEGG_maps_selected.tab'):
         route_set.add(route)
         route_especific_ko_order[ko][route] = pos
         ko2enzyme_name[ko] = tr
-
 
 
 # discard leaves in the tree with no kos assigned
